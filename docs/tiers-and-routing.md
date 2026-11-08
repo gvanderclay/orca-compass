@@ -34,19 +34,21 @@ table with its age.
 
 Routing is part 2 (`src/routing/`): a route reads the table and `orca account
 list`, applies your bans, agent choice, pins and the refused-model list, and
-ranks. It never recomputes a placement, so a route takes well under a second
-once the table exists.
+ranks. The ranking itself does not recompute placements; gathering its inputs
+can rebuild a stale table. With a fresh table, latency mainly depends on Orca's
+usage response, which has a 20-second timeout.
 
 ## How a model gets its tier
 
 For every discovered model, the first rule that applies wins
 (`classifyLaunch` in `src/placements/tiers.ts`):
 
-1. **Your override for the exact model id** (`tierOverrides`, e.g.
+1. **Cursor's `auto`**: Light and Daily, when `cursorAuto` is on and you have
+   no exact `tierOverrides.auto` entry.
+2. **Your override for the exact model id** (`tierOverrides`, e.g.
    `"gemma4:12b": "light"`).
-2. **Your override for the model's Models.dev family** (e.g. `"grok": "daily"`).
-3. **Cursor's `auto`**: Light and Daily, when `cursorAuto` is on and you have
-   no `tierOverrides.auto`.
+3. **Your override for the model's family** (e.g. `"grok": "daily"`), from
+   Models.dev or a recognized Claude/GPT versioned ID.
 4. **The provider's description**, when it supplies a usable tier (below).
 5. **A built-in model line**, then **the family ladder** (below): Gemini Argon
    is Frontier; Grok 4.7 to 4.9 and Grok 5 and later are Advanced.
@@ -62,7 +64,7 @@ provider descriptions and family rules do not impose that confidence cap.
 
 Claude Code's account catalog (`~/.claude/cache/model-catalog/*-cc.json`) and
 Codex's model cache (`~/.codex/models_cache.json`) describe each model in a
-few words. OrcaCompass reads a tier from them, strongest claim first:
+few words. OrcaCompass uses the first matching row below, in this order:
 
 | Tier | Words |
 | --- | --- |
@@ -376,7 +378,7 @@ else ──► none
 - `wait` carries `waitUntil`, the earliest moment at which some blocked
   requested-tier candidate has all of its blocking pools reset.
 - `none` says why (`no usable agent`, `all advanced candidates blocked: …`,
-  `no unblocked model in any lower tier`) and may still carry `waitUntil`.
+  `no eligible unblocked model in any lower tier`) and may still carry `waitUntil`.
 - With `--effort`, candidates that cannot apply that exact effort are dropped
   before any of this; if the requested tier has candidates but none can, the
   answer is `none` with the efforts each one offers.

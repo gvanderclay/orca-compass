@@ -39,8 +39,10 @@ the data-cache interval. Failed downloads use a valid cached copy, then the
 bundled snapshot. Usage is read from Orca for each routing request.
 
 Currently an expired data cache triggers a full download even if the remote
-file has not changed. The stored retrieval times are not conditional-download
-version checks. See [Tiers and routing](tiers-and-routing.md) for the calculation.
+file has not changed. The score cache's `fetchedAt` is the time this client
+downloaded it; the repository snapshot's `fetchedAt` is the maintainer's
+collection time. Neither is a conditional-download version check. See
+[Tiers and routing](tiers-and-routing.md) for the calculation.
 
 ## Updating the shared scores
 

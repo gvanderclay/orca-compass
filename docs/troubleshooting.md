@@ -147,8 +147,9 @@ agent changed its wording. Please open an issue with that tail. See
 
 ## Models are missing or out of date
 
-Every model's tiers come from the placement table, built from every source at
-most once per `placementsTtlHours` (5 hours). A model you just gained, or an
+Every model's tiers come from the placement table, normally reused for
+`placementsTtlHours` (5 hours). A refresh, changed placement settings, a CLI
+update or a newly detected agent can rebuild it earlier. A model you just gained, or an
 agent you just signed in to, shows up at the next build. `orcacompass tiers`
 prints the table with its age. This rebuilds it now and refetches the
 metadata too:
@@ -160,8 +161,8 @@ orcacompass refresh
 If `status` says `catalog: snapshot`, OrcaCompass could not reach Models.dev
 and the table was built from the metadata bundled with this version; run
 `refresh` when online. On a network failure `refresh` prints `could not reach
-models.dev; still using the …` and exits 0. It does not read usage, which
-every call reads live.
+models.dev; still using the …` and exits 0 when fallback metadata is available.
+It does not read usage; routing requests read usage from Orca each time.
 
 A new model that no tier rule covers is listed under `unclassified (never
 routed)` in `status`. Run `refresh` first; if it stays unclassified, give it a
@@ -197,8 +198,8 @@ Orca also opens its own terminal tab, which is expected.
 A call that builds the placement table waits for Models.dev and then runs
 every agent's model listing, so it can take longer than any single timeout:
 10 s for metadata, 30 s for each live listing, 20 s for Orca usage. That
-happens on the first call, after `orcacompass refresh`, and at most once per
-`placementsTtlHours`; every other call reads the table and only runs `orca
-account list`. `status` and `tiers` say when the table was built. The cache
+happens on the first call, during `orcacompass refresh`, and when the table
+becomes stale. A routing request with a fresh table only runs `orca account list`
+for live usage. `status` and `tiers` say when the table was built. The cache
 holds observed state only and is safe to delete; see
 [Where things live](configuration.md#where-things-live).

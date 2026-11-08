@@ -71,6 +71,9 @@ repeat install, downgrade refusal and a failed CLI update. A local registry
 serves temporary test versions; nothing is published and your installed
 CLI, Skills and settings are untouched. It downloads `skills@1` from npm
 and prints the temporary folder containing the logs.
+On Windows the outer test environment leaves telemetry and CI overrides unset
+so the test exercises OrcaCompass's own workaround for the Skill installer's
+shutdown crash. Only its Windows `skills` subprocesses disable telemetry.
 
 CI runs the suite, type check, build and package smoke check on Windows, macOS
 and Linux with Node.js 24. A separate job checks the compiled package on Node.js
@@ -80,8 +83,10 @@ and Linux with Node.js 24. A separate job checks the compiled package on Node.js
 
 For model-data updates, follow [Model data](docs/model-data.md). Review changes
 to the two snapshots in `data/`, preserve source attribution, and run the tests.
-A data-only update on public `main` reaches installed clients through refresh;
-it does not require publishing a new npm package.
+A score-file update on public `main` reaches installed clients through refresh;
+it does not require publishing a new npm package. The Models.dev fallback
+snapshot reaches users with the next npm release; normal catalog refreshes
+fetch Models.dev directly.
 
 Edit the Markdown pages in `docs/`. `docs/README.md` is the guide's overview on
 GitHub and is included by `docs/index.md` for the website, so its content has
@@ -96,6 +101,10 @@ npm run docs:preview   # inspect the production build
 VitePress is a development-only dependency. Its Vite override keeps the stable
 VitePress release on the patched Vite 6 line; review the override when upgrading
 VitePress. The CLI package contains no website build tools.
+
+The hosted guide is published separately after merge: run the **Publish user
+guide** workflow on `main` (or `gh workflow run pages.yml --ref main`). Pushing
+documentation alone does not deploy the website.
 
 ## Project layout
 

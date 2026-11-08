@@ -114,7 +114,7 @@ Codex and Cursor (`allowAgents`), pins Claude Sonnet for Daily and adds one tier
 override (`grok-4.7` is already Advanced built in, so that line only shows the
 syntax). Remove those three to keep automatic selection; the other keys it
 lists are at their defaults, and keys it omits (`effortPolicy`,
-`rejectionTtlHours`, `lastResortAgents`) keep theirs.
+`placementsTtlHours`, `rejectionTtlHours`, `lastResortAgents`) keep theirs.
 
 ```json
 {
@@ -134,12 +134,19 @@ local Gemma model as Light, and lets exceptional demand reach `xhigh`.
 
 ## Data sources
 
-Usage is read on every call. Every other source is read when the placement
-table is built (see `placementsTtlHours`).
+Commands that gather a routing environment read usage and Orca's agent switches
+each time. Metadata and model listings are read when the placement table is
+built (see `placementsTtlHours`). `tiers` and `refresh` do not read usage.
+Setting a preference with `prefer <tier> <agent> [model]`, listing or adding
+bans with `ban`, and removing bans with `unban` also gather that environment
+to check or display entries against discovered models. Agent selection edits,
+the bare `prefer` listing, `prefer clear`, `prefer --risk-limit`, and installer
+commands do not gather it.
 
 | Source | Used for | How |
 | --- | --- | --- |
-| `orca account list --json` | Usage and limits per agent | Run on every call, 20 s timeout |
+| `orca account list --json` | Usage and limits per agent | Run whenever the routing environment is gathered, 20 s timeout |
+| Claude Code's cached account model catalog, then Orca's model catalog, then Models.dev | Claude models, effort levels and lineup words | Read at table build; Models.dev is the fallback when neither local catalog supplies models |
 | [Models.dev](https://models.dev) (`/api.json`) | Model names, families, release dates, output prices, effort options for Anthropic, OpenAI, Google, xAI | Cache (24 h) → network (10 s) → stale cache → bundled snapshot `data/models-snapshot.json` |
 | [The Model Index](https://themodelindex.org) scores (CC BY 4.0), maintained in the OrcaCompass repository | Capability scores and OpenRouter output prices for placing models outside the ladder | Cache (24 h) → `data/modelindex-snapshot.json` on public `main` (10 s) → valid stale cache → bundled copy. Users do not fetch the upstream provider. Failure only disables score placement |
 | `~/.codex/models_cache.json`, then Orca's `agent-model-catalog.json`, then Models.dev | Codex models, effort levels and lineup words | Read as files; the Models.dev fallback keeps only the Codex ladder families (`gpt-luna`, `gpt-terra`, `gpt-sol`, `gpt-astra`) and no `-latest` alias |
@@ -161,8 +168,11 @@ no API key is needed or sent. The optional
 `--tier-reason` argument carries a short classification explanation supplied
 by the coordinator and is returned in command output; it is not sent in these
 metadata requests. Discovery reads machine metadata. Usage and configuration
-stay local. OrcaCompass collects no telemetry and calls no AI model. Child
-commands run with stdin closed and bounded timeouts. The agent CLIs and Orca
+stay local. OrcaCompass collects no telemetry and calls no AI model. Background
+discovery commands run with stdin closed and bounded timeouts. Install, update
+and uninstall attach their interactive steps to your terminal. On Windows,
+OrcaCompass disables telemetry in the `skills` child processes to avoid their
+shutdown crash. The agent CLIs, npm, the Skill installer and Orca
 have their own network and privacy behavior. Diagnostics (`status --json`,
 `agents --json`) include local paths and usage details; sanitize them before
 sharing.

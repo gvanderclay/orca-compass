@@ -4,7 +4,7 @@ import * as nodeModule from 'node:module';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { findExecutable, quote, runCommand, searchPath } from '../../src/system/run.js';
+import { findExecutable, quote, runCommand, runInteractive, searchPath } from '../../src/system/run.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 
@@ -39,6 +39,28 @@ describe('quote', () => {
 
 // Node >= 22.13; the subprocess test needs run.ts as plain JS and TypeScript 7 has no JS API.
 const stripTypes = (nodeModule as { stripTypeScriptTypes?: (code: string) => string }).stripTypeScriptTypes;
+
+describe('runInteractive', () => {
+  it('passes child overrides while preserving inherited variables and the parent environment', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'oc-interactive-'));
+    const script = join(dir, 'probe.cjs');
+    const result = join(dir, 'result.json');
+    writeFileSync(script, "require('node:fs').writeFileSync(process.argv[2], JSON.stringify({ marker: process.env.ORCACOMPASS_TEST_CHILD, inherited: process.env.ORCACOMPASS_TEST_PARENT }));");
+    const before = { child: process.env.ORCACOMPASS_TEST_CHILD, parent: process.env.ORCACOMPASS_TEST_PARENT };
+    process.env.ORCACOMPASS_TEST_CHILD = 'parent-value';
+    process.env.ORCACOMPASS_TEST_PARENT = 'inherited-value';
+    try {
+      expect(await runInteractive(process.execPath, [script, result], { env: { ORCACOMPASS_TEST_CHILD: 'child-value' } })).toBe(0);
+      expect(JSON.parse(readFileSync(result, 'utf8'))).toEqual({ marker: 'child-value', inherited: 'inherited-value' });
+      expect(process.env.ORCACOMPASS_TEST_CHILD).toBe('parent-value');
+    } finally {
+      if (before.child === undefined) delete process.env.ORCACOMPASS_TEST_CHILD;
+      else process.env.ORCACOMPASS_TEST_CHILD = before.child;
+      if (before.parent === undefined) delete process.env.ORCACOMPASS_TEST_PARENT;
+      else process.env.ORCACOMPASS_TEST_PARENT = before.parent;
+    }
+  });
+});
 
 describe('runCommand', () => {
   it('captures stdout and exit code', async () => {

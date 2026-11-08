@@ -39,7 +39,11 @@ function environment(name) {
       ? [join(process.env.SystemRoot, 'System32'), process.env.SystemRoot] : ['/usr/bin', '/bin'])].join(delimiter),
     npm_config_prefix: prefix, npm_config_cache: join(root, 'cache'), npm_config_userconfig: userconfig,
     npm_config_registry: registry || 'https://registry.npmjs.org', npm_config_audit: 'false', npm_config_fund: 'false',
-    ORCACOMPASS_HOME: join(profile, 'orcacompass'), DISABLE_TELEMETRY: '1', DO_NOT_TRACK: '1', CI: '1',
+    ORCACOMPASS_HOME: join(profile, 'orcacompass'),
+    // Windows must exercise the product's own skills telemetry mitigation, not
+    // inherit one from this harness. Coordinator detection matches a real install.
+    ...(process.platform === 'win32' ? { CODEX_THREAD_ID: 'isolated-installer-check' }
+      : { DISABLE_TELEMETRY: '1', DO_NOT_TRACK: '1', CI: '1' }),
   };
   return { folder, profile, project, prefix, env };
 }
@@ -177,6 +181,12 @@ try {
   assert.equal(readFileSync(config, 'utf8'), preferences);
   assert.equal(readFileSync(cache, 'utf8'), 'preserve this cache');
   console.log('PASS: partial global removal retains CLI; full global removal removes CLI and preserves config/cache');
+  if (process.platform === 'win32') {
+    assert.equal(upgrade.env.DISABLE_TELEMETRY, undefined);
+    assert.equal(upgrade.env.DO_NOT_TRACK, undefined);
+    assert.equal(upgrade.env.CI, undefined);
+    console.log('PASS: Windows Skill removal exits cleanly without outer telemetry or CI overrides');
+  }
 
   const failed = environment('failed-update');
   await run(failed, 'old-install', command(oldVersion));

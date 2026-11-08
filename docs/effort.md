@@ -69,10 +69,10 @@ from (`supportSource`), most trusted first:
 
 | `supportSource` | Meaning | Agents |
 | --- | --- | --- |
-| `provider` | The agent CLI's own model list or cache | Claude Code (its cached account catalog), Codex (`models_cache.json`), Cursor (effort variants in `cursor-agent models`), Grok (`models_cache.json`) |
+| `provider` | The agent CLI's own model list or cache | Claude Code (its cached account catalog), Codex (`models_cache.json`), Cursor (effort variants in `cursor-agent models`), Grok (`models_cache.json`), Antigravity Gemini variants (effort in the id) |
 | `orca` | Orca's effort menu or catalog for that agent | Claude Code and Codex (when Orca's catalog is the source), Grok (from `grok models`, with Orca's ceilings), Antigravity non-Gemini models (`low`/`medium`/`high`), OpenCode (none) |
-| `catalog` | Models.dev `reasoning_options` | Claude Code when no local list is available |
-| `assumed` | A built-in guess | Claude Code when Models.dev lists no efforts: `low`, `medium`, `high`, `xhigh`, `max` |
+| `catalog` | Models.dev `reasoning_options` | Claude Code and Codex when no local list is available |
+| `assumed` | A built-in guess | Claude Code and Codex on the Models.dev fallback when no efforts are listed: `low`, `medium`, `high`, `xhigh`, `max` |
 
 ### Snapping (automatic targets)
 
@@ -123,7 +123,8 @@ reports one. The orchestrator must not claim an effort was set in that case.
   catalog, then Models.dev per model, else assumed
   `low`…`max`. Passed as `--effort`.
 - **Codex**: `supported_reasoning_levels` and `default_reasoning_level` from
-  `~/.codex/models_cache.json`; from Orca's catalog when that is the source.
+  `~/.codex/models_cache.json`; then Orca's catalog, then Models.dev effort
+  options or assumed `low` to `max` when neither local catalog supplies models.
   Passed as `--effort`. Orca checks effort against its own catalog for models it
   knows (for example `gpt-5.5` up to `xhigh`); whether the two lists always agree
   has not been checked.

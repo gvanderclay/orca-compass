@@ -24,6 +24,8 @@ orcacompass setup --json
 orcacompass setup --complete [--json]
 orcacompass setup --skip [--json]
 orcacompass install [-g|--global | -l|--local] [-y|--yes] [-a|--agent <name>]... [--skill-only]
+orcacompass update [same options as install]
+orcacompass uninstall [same options as install]
 orcacompass --help
 ```
 
@@ -35,13 +37,13 @@ orcacompass --help
 | `status` | Agents, usage pools, the pick and alternatives per tier, metadata and placement table age | same as `route` |
 | `tiers` | Every model's tiers from the placement table, with the words and numbers behind each one | same as `route` |
 | `agents` | Which agents are used, and why not; `disable`, `enable`, `only`, `reset` change it | listing: same as `route`; mutations write `allowAgents`, `denyAgents` |
-| `prefer` | Favorite route per tier; `clear` removes it; `--risk-limit` sets when a known within-limit alternative replaces it | `pins`, `preferRiskLimit` |
-| `ban` / `unban` | Models or families never routed | `banModels` |
+| `prefer` | Favorite route per tier; `clear` removes it; `--risk-limit` sets when a known within-limit alternative replaces it | `pins`, `preferRiskLimit`; same caches as `route` when setting a preference |
+| `ban` / `unban` | Models or families never routed | `banModels` when adding/removing entries; same caches as `route`, including when listing bans |
 | `refresh` | Downloads fresh model metadata and rebuilds the placement table | cache (`modelsdev.json`, `modelindex.json`, `placements.json`) |
 | `setup` | Interactive first-time setup in a terminal | the keys above |
 | `setup --json` | What the setup questions need, for an orchestrator asking them in chat | same as `route` |
 | `setup --complete` | Marks chat setup complete, including unchanged defaults | an empty config if absent; same as `route` |
-| `setup --skip` | Declines setup: keeps the defaults and stops the chat offer | an empty config file, if none exists |
+| `setup --skip` | Declines setup: keeps existing settings or defaults and stops the chat offer | an empty config if absent; same caches as `route` |
 | `install` | Installs or updates the CLI, then its matching packaged Skill | agents' skills folders; a global npm package |
 | `update` | Fetches the latest release and runs its installer with your options | same as `install` |
 | `uninstall` | Removes the selected Skill; full `--global` also removes the CLI | selected Skill files; optionally the global npm package |
@@ -162,7 +164,7 @@ and up to three alternatives per tier (each tier on its own, without
 fallbacks), models placed by the provider's lineup or the
 capability score with the words and numbers behind them, unclassified models,
 the age and source of the metadata, and when the placement table was built
-(`placements: built 2h ago (orcacompass 0.1.0)`, or `built now: no table
+(`placements: built 2h ago (orcacompass <version>)`, or `built now: no table
 yet` when this call rebuilt it, plus `placements: could not be saved: …`
 when the cache folder is not writable). `--json` has `now`, `catalog`,
 `scores` (or `null`), `placements` (`builtAt`,
@@ -317,6 +319,10 @@ Both steps run attached to the terminal, so their questions and output reach
 you. Without a terminal it exits 1 unless `--yes` is given. Exits 1 when either
 step fails, with the step that failed and how to finish by hand.
 
+On Windows, OrcaCompass disables telemetry only in its `skills` subprocesses
+to avoid an upstream shutdown crash. It does not change your environment or
+npm's settings.
+
 
 ## `update`
 
@@ -332,5 +338,7 @@ Run `npx orcacompass uninstall` from a project to remove its Skill through
 `skills@1`. The shared CLI remains installed. `--global` removes the
 user-wide Skill first and then runs `npm uninstall -g orcacompass`.
 `--skill-only` or an explicit `--agent` keeps the shared CLI even with
-`--global`. A failed Skill removal stops before CLI removal. Preferences
+`--global`. Before full global CLI removal, the installer also checks that
+the global Skill is no longer listed; cancellation, inventory errors or a
+remaining copy retain the CLI. A failed Skill removal stops before CLI removal. Preferences
 and caches are preserved. `--yes` is required without an interactive terminal.

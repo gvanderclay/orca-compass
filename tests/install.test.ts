@@ -1,9 +1,10 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/cli.js';
 import { install, update, uninstall, SKILLS_CLI, type InstallDeps } from '../src/install.js';
+import type { Interactive, Runner } from '../src/system/run.js';
 
 let root: string;
 let calls: [string, string[]][];
@@ -24,6 +25,34 @@ beforeEach(() => {
   writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'orcacompass', version: '9.8.7' }));
   calls = [];
   logs = [];
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('Skill subprocess environment', () => {
+  it.each(['win32', 'linux', 'darwin'])('isolates the Windows telemetry workaround from npm and the parent on %s', async (platform) => {
+    const parentEnv = { ...process.env, DISABLE_TELEMETRY: '0' };
+    vi.stubGlobal('process', { ...process, platform, env: parentEnv });
+    const interactive = vi.fn<Interactive>(async () => 0);
+    const run = vi.fn<Runner>(async (cmd) => ({ code: 0, stdout: cmd === 'npx' ? '[]' : '{"dependencies":{}}', stderr: '' }));
+    const options = platform === 'win32' ? { env: { DISABLE_TELEMETRY: '1' } } : undefined;
+
+    expect(await install({ global: true, yes: true }, { packageRoot: root, interactive, run })).toBe(0);
+    expect(interactive).toHaveBeenNthCalledWith(1, 'npm', ['install', '-g', 'orcacompass@9.8.7']);
+    expect(interactive.mock.calls[1]?.slice(0, 2)).toEqual(['npx', ['-y', SKILLS_CLI, 'add', root, '--global', '--yes']]);
+    expect(interactive.mock.calls[1]?.[2]).toEqual(options);
+    expect(run).toHaveBeenCalledWith('npm', ['ls', '--global', '--depth=0', '--json', 'orcacompass']);
+
+    interactive.mockClear();
+    run.mockClear();
+    expect(await uninstall({ global: true, yes: true }, { interactive, run })).toBe(0);
+    expect(interactive.mock.calls[0]?.slice(0, 2)).toEqual(['npx', ['-y', SKILLS_CLI, 'remove', 'orcacompass', '--global', '--yes']]);
+    expect(interactive.mock.calls[0]?.[2]).toEqual(options);
+    expect(run.mock.calls[0]?.slice(0, 2)).toEqual(['npx', ['-y', SKILLS_CLI, 'list', '--global', '--json']]);
+    expect(run.mock.calls[0]?.[2]).toEqual(options);
+    expect(interactive).toHaveBeenNthCalledWith(2, 'npm', ['uninstall', '-g', 'orcacompass']);
+    expect(process.env.DISABLE_TELEMETRY).toBe('0');
+  });
 });
 
 describe('install', () => {

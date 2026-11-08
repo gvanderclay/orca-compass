@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-OrcaCompass is currently an early `0.1.x` project, developed on GitHub and
+OrcaCompass is currently a pre-1.0 project, developed on GitHub and
 packaged for npm as `orcacompass`. Security fixes target the current
 default-branch version and the latest npm release, when one exists. Older commits
 are not maintained as separate security branches; update to the latest revision

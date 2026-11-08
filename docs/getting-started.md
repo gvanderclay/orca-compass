@@ -184,8 +184,9 @@ See [Commands](commands.md).
 
 ## What runs on every call
 
-`route`, `status`, `agents` and `setup` all gather the same picture of your
-machine first (`src/routing/environment.ts`); `tiers` reads only the table. The work is in two
+`route`, `status`, the `agents` listing, `setup`, setting a `prefer` entry,
+`ban` (including its listing) and `unban` gather the same picture of your
+machine (`src/routing/environment.ts`); `tiers` reads only the table. The work is in two
 parts: the **placement table** (every model's tiers, built from every source
 and kept for `placementsTtlHours`, 5 hours by default) and the **route**
 (the table plus live usage). The optional `--tier-reason` is the
@@ -239,7 +240,8 @@ environment, your request and your config into a `Decision`. See
 
 A run that builds the table waits for Models.dev before discovery, so it can
 take longer than any single timeout (10 s metadata, 20 s usage, 30 s
-listings). Every other run reads the table and takes well under a second.
+listings). A fresh-table run skips discovery, but still waits for Orca's usage
+response, which can take up to its 20-second timeout.
 
 ## Check that it works
 
