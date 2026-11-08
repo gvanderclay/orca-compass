@@ -27,7 +27,6 @@ The cache holds observed state only and is safe to delete:
 | --- | --- |
 | `modelsdev.json` | Models.dev catalog, with `fetchedAt` |
 | `modelindex.json` | The Model Index ratings, with `fetchedAt` |
-| `artificialanalysis.json` | Artificial Analysis benchmarks, with `fetchedAt`; written only with your own key |
 | `placements.json` | The placement table: every model's tiers with the numbers behind them, built from every source; reused for `placementsTtlHours` |
 | `cursor-models.json`, `grok-models.json`, `antigravity-models.json`, `opencode-models.json` | Last good model listing per agent, used only when the live command fails |
 | `rejected-models.json` | Models agents refused at launch, written by `verify` |
@@ -104,7 +103,7 @@ config requires the spelling `xhigh`.
 | Key | Default | Purpose |
 | --- | --- | --- |
 | `scoreWeight` | `0.4` | Intelligence weight of the capability score, 0 to 1; log-price gets the rest |
-| `modelsDevTtlHours` | `24` | Cache lifetime for Models.dev, The Model Index and Artificial Analysis |
+| `modelsDevTtlHours` | `24` | Cache lifetime for Models.dev metadata and repository Model Index scores |
 | `placementsTtlHours` | `5` | How long the placement table (every model's tiers) is reused before every source is read again; `0` rebuilds on every command. A change to `tierOverrides`, `cursorAuto` or `scoreWeight`, an OrcaCompass update, or an agent newly found (on PATH or in its installer's default folder) rebuilds it at once; `orcacompass refresh` always does |
 | `rejectionTtlHours` | `168` | How long a model an agent refused at launch (found by `verify`) is skipped |
 
@@ -142,8 +141,7 @@ table is built (see `placementsTtlHours`).
 | --- | --- | --- |
 | `orca account list --json` | Usage and limits per agent | Run on every call, 20 s timeout |
 | [Models.dev](https://models.dev) (`/api.json`) | Model names, families, release dates, output prices, effort options for Anthropic, OpenAI, Google, xAI | Cache (24 h) → network (10 s) → stale cache → bundled snapshot `data/models-snapshot.json` |
-| [The Model Index](https://themodelindex.org) (`/data/models.json`, CC BY 4.0) | Capability scores and OpenRouter output prices for placing models outside the ladder | Same chain; snapshot `data/modelindex-snapshot.json`. Failure only disables score placement |
-| [Artificial Analysis](https://artificialanalysis.ai) Data API (`/api/v2/language/models/free`) | Intelligence and engineering indices, token prices and cost per task for the benchmark tier | Fetches require your own key in `ARTIFICIAL_ANALYSIS_API_KEY` (free tier: 100 requests a day; a fetch uses 4). Cache (24 h) → network (15 s) → stale cache. No snapshot: the data is licensed to you, so nothing is bundled and you must not commit the cache. Without a key, a previously saved benchmark cache can still be used; otherwise placement uses the lineup, ladder and score |
+| [The Model Index](https://themodelindex.org) scores (CC BY 4.0), maintained in the OrcaCompass repository | Capability scores and OpenRouter output prices for placing models outside the ladder | Cache (24 h) → `data/modelindex-snapshot.json` on public `main` (10 s) → valid stale cache → bundled copy. Users do not fetch the upstream provider. Failure only disables score placement |
 | `~/.codex/models_cache.json`, then Orca's `agent-model-catalog.json`, then Models.dev | Codex models, effort levels and lineup words | Read as files; the Models.dev fallback keeps only the Codex ladder families (`gpt-luna`, `gpt-terra`, `gpt-sol`, `gpt-astra`) and no `-latest` alias |
 | `cursor-agent models` | Cursor model variants and `NO ZDR` labels | At table build, 30 s, saved copy on failure |
 | `~/.grok/models_cache.json`, then `grok models` | Grok Build models, efforts, default | At table build: file, then live |
@@ -157,9 +155,9 @@ Regenerate the bundled snapshots with `npm run snapshot` after `npm run build`
 
 ## Privacy
 
-OrcaCompass fetches public metadata from Models.dev and The Model Index. When
-you provide an Artificial Analysis API key, it can also make authenticated
-requests to that service, sending the key in a request header. The optional
+OrcaCompass fetches public metadata from Models.dev and maintained Model Index
+scores from this repository on GitHub. These are unauthenticated GET requests;
+no API key is needed or sent. The optional
 `--tier-reason` argument carries a short classification explanation supplied
 by the coordinator and is returned in command output; it is not sent in these
 metadata requests. Discovery reads machine metadata. Usage and configuration

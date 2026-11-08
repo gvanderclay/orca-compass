@@ -26,15 +26,31 @@ orcacompass install --skill-only --yes --global --agent claude-code --agent code
 **`The Skill was not installed (npx skills@1 exited with …)`**: the
 [`skills`](https://github.com/vercel-labs/skills) installer failed; its own
 output above says why. `npx` downloads it on first use, so it needs network
-access. Nothing else is installed in that case.
+access. The CLI may already have been installed or updated. Fix the cause
+and retry `npx orcacompass update` with the same scope and agent choices.
 
-**`The Skill is installed, but the CLI is not (npm exited with …)`**: the
+**`CLI installation failed (npm exited with …)`**: the
 global npm install failed, often because npm cannot write to its global
-folder. Fix that, then run `npm install -g orcacompass`; see [Install](getting-started.md#install).
+folder. The Skill was left unchanged. Fix the cause, then retry
+`npx orcacompass update` with the same scope; see [Install](getting-started.md#install).
+
+**`The installed CLI … is newer than this installer …`**: an older installer
+would downgrade your CLI. Use `npx orcacompass@latest update` with the same scope.
+
+**`Cannot resolve the latest installer …`**: npm could not read its latest
+version tag. Check network access and registry settings, then retry `update`.
+
+**`Cannot confirm Skill removal …`**: the Skill installer may have been
+cancelled or could not remove every copy. The shared CLI was retained. Fix
+the reported problem and retry `uninstall --global`.
+
+**`Cannot check the installed CLI …`**: npm could not read its global package
+metadata. Run `npm ls --global --depth=0 --json orcacompass` to inspect the
+error. Nothing was changed.
 
 **`orcacompass` is not found after installing.** npm's global `bin` folder is
-not on your PATH (`npm prefix -g` shows where npm installs). `install` checks
-PATH for an existing CLI, so it installs again each time until this is fixed.
+not on your PATH (`npm prefix -g` shows where npm installs). Add that folder
+on Windows, or its `bin` subfolder on macOS/Linux, to PATH and open a new terminal.
 
 **`orcacompass setup asks its questions in a terminal, and this is not one.`**
 Ask your orchestrator to "set up OrcaCompass" in chat instead (it reads

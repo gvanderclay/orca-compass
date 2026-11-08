@@ -31,7 +31,7 @@ To build, test or change OrcaCompass itself, see
 ## Quick tour
 
 ```sh
-npx orcacompass install --global    # the CLI and the Skill for your user
+npx orcacompass install            # shared CLI and project Skill
 orcacompass setup                   # three questions, then a summary
 orcacompass route --tier daily --demand moderate --json
 ```

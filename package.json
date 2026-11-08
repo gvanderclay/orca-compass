@@ -1,6 +1,6 @@
 {
   "name": "orcacompass",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Usage-aware agent/model/effort routing for Orca coordinator agents",
   "license": "Apache-2.0",
   "author": "manomilano",
@@ -42,6 +42,7 @@
     "test": "vitest run",
     "snapshot": "node scripts/make-snapshot.mjs",
     "test:package": "node scripts/test-package.mjs",
+    "test:install": "node scripts/test-install.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

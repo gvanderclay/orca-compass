@@ -1,7 +1,7 @@
 import { DEMAND_EFFORT, snapEffort } from './effort.js';
 import { poolState, projectPool, rankHeadroom } from './pace.js';
 import type { Rejection } from './rejection.js';
-import { FAMILY_TIERS, isLadderVendor } from '../placements/tiers.js';
+import { FAMILY_TIERS, isLadderVendor, knownModelVersion, modelFamily } from '../placements/tiers.js';
 import {
   AGENT_IDS,
   TIERS,
@@ -314,9 +314,10 @@ export function agentSkipReason(
 export const enabledInOrca = (o: OrcaAgents | undefined, agent: AgentId): 'yes' | 'no' | 'unknown' =>
   !o?.known ? 'unknown' : o.disabled.includes(agent) ? 'no' : 'yes';
 
-/** The user's ban entry matching a model by its base id or Models.dev family, if any. */
+/** The user's ban entry matching a model by its base id or catalog/recognized family, if any. */
 export function banEntry(model: LaunchModel, banModels: readonly string[]): string | undefined {
-  return banModels.find((b) => b === model.modelId || (model.meta?.family !== undefined && b === model.meta.family));
+  const family = modelFamily(model.modelId, model.meta);
+  return banModels.find((b) => b === model.modelId || (family !== undefined && b === family));
 }
 
 /** The first ban entry that names an agent and no model family: that takes `agents disable`, not a ban. */
@@ -342,7 +343,6 @@ export function rejectionOf(model: LaunchModel, rejections: readonly Rejection[]
 /** e.g. 'refused by codex 2h ago: "The 'x' model is not supported when using Codex with a ChatGPT account."' */
 export const rejectedText = (r: Rejection, now: number): string => `refused by ${r.agent} ${duration(now - r.at)} ago: "${r.message}"`;
 
-/** The Model Index and Artificial Analysis scales the environment supports. */
 /** Candidates of every tier; banned or refused models placed in `tier` are reported as skipped. */
 function collectCandidates(agents: PlacedAgent[], env: Environment, config: Config, tier: Tier, skipped: Skipped): Candidate[] {
   const classified: { model: PlacedModel; cls: Classification }[] = [];
@@ -367,18 +367,42 @@ function collectCandidates(agents: PlacedAgent[], env: Environment, config: Conf
 }
 
 /**
- * Keep only the newest release per (agent, family, tier); models without a date count as oldest.
+ * Keep only the newest release per (agent, family, tier), using known family versions before catalog dates.
  * Table families share one tier; score placement can split a family (grok-4.6 Daily, grok-4.5 Light).
  */
 function newestPerFamily<T extends { model: PlacedModel; cls: Classification }>(items: T[]): T[] {
-  const newest = new Map<string, string>();
-  const key = ({ model, cls }: T) => `${model.agent}\u0000${model.meta?.family ?? model.modelId}\u0000${cls.tier}`;
-  const date = (m: LaunchModel) => m.meta?.releaseDate ?? '';
+  const newest = new Map<string, PlacedModel>();
+  const key = ({ model, cls }: T) => {
+    const family = modelFamily(model.modelId, model.meta);
+    return `${model.agent}\u0000${family === undefined ? `model:${model.modelId}` : `family:${family}`}\u0000${cls.tier}`;
+  };
   for (const item of items) {
     const k = key(item);
-    if (date(item.model) > (newest.get(k) ?? '') || !newest.has(k)) newest.set(k, date(item.model));
+    const previous = newest.get(k);
+    if (!previous || compareRelease(item.model, previous) > 0) newest.set(k, item.model);
   }
-  return items.filter((item) => date(item.model) === newest.get(key(item)));
+  return items.filter((item) => compareRelease(item.model, newest.get(key(item))!) === 0);
+}
+
+/** Within a family, explicit numeric releases precede unversioned aliases, then versions and actual dates decide. */
+function compareRelease(a: LaunchModel, b: LaunchModel): number {
+  const family = modelFamily(a.modelId, a.meta);
+  if (family !== undefined && family === modelFamily(b.modelId, b.meta)) {
+    const av = knownModelVersion(a.modelId);
+    const bv = knownModelVersion(b.modelId);
+    const aVersioned = av?.family === family;
+    const bVersioned = bv?.family === family;
+    if (aVersioned !== bVersioned) return aVersioned ? 1 : -1;
+    if (av?.family === family && bv?.family === family) {
+      for (let i = 0; i < Math.max(av.version.length, bv.version.length); i++) {
+        const difference = (av.version[i] ?? 0) - (bv.version[i] ?? 0);
+        if (difference !== 0) return difference;
+      }
+    }
+  }
+  const ad = a.meta?.releaseDate ?? '';
+  const bd = b.meta?.releaseDate ?? '';
+  return ad < bd ? -1 : ad > bd ? 1 : 0;
 }
 
 function evaluate(model: PlacedModel, cls: Classification, env: Environment, config: Config): Candidate {
@@ -430,7 +454,7 @@ function evaluate(model: PlacedModel, cls: Classification, env: Environment, con
   base.headroom = ranked.headroom;
   base.rank = ranked.rank;
   base.tightest = { pool: ranked.pool, elapsed: ranked.elapsed };
-  // The provider's own lineup and the family table are firm; a benchmark or score placement is an estimate.
+  // The provider's own lineup and the family table are firm; a score placement is an estimate.
   base.confidence = lowered ? 'low' : cls.source === 'family' || cls.source === 'lineup' ? 'high' : 'medium';
 
   const age = usage.updatedAt === undefined ? 0 : env.now - usage.updatedAt;
@@ -447,37 +471,17 @@ function evaluate(model: PlacedModel, cls: Classification, env: Environment, con
 
 // --- ranking --------------------------------------------------------------------------------
 
-/** How much more headroom a benchmark-placed model needs to pass the provider's own pick for the tier, within one agent. */
-export const HOME_TIER_MARGIN = 0.2;
-
-const isHome = (c: Candidate): boolean => c.source === 'lineup' || c.source === 'family';
-
-/**
- * Within one agent, the model the provider (or the ladder) puts in this tier keeps it against a model that only
- * benchmarks into it, unless the other has more than HOME_TIER_MARGIN more headroom: Fable before Opus for Frontier.
- */
-function homeFirst(a: Candidate, b: Candidate): number {
-  if (a.model.agent !== b.model.agent || isHome(a) === isHome(b) || a.rank === null || b.rank === null) return 0;
-  const homeIsA = isHome(a);
-  const homeRank = homeIsA ? a.rank : b.rank;
-  const otherRank = homeIsA ? b.rank : a.rank;
-  if (otherRank - homeRank > HOME_TIER_MARGIN) return 0;
-  return homeIsA ? -1 : 1;
-}
-
 /** Within a tier: unblocked first, then most headroom, then the plan's ordering (Claude/GPT before other vendors on a tie), ending in a total order for determinism. */
 function compareRanked(a: Candidate, b: Candidate): number {
   if (a.blocked !== b.blocked) return a.blocked ? 1 : -1;
   if ((a.rank === null) !== (b.rank === null)) return a.rank === null ? 1 : -1;
-  const home = homeFirst(a, b);
-  if (home !== 0) return home;
   if (a.rank !== null && b.rank !== null && a.rank !== b.rank) return b.rank - a.rank;
   if (!!a.hotSession !== !!b.hotSession) return a.hotSession ? 1 : -1;
   const conf = CONFIDENCE_ORDER.indexOf(a.confidence) - CONFIDENCE_ORDER.indexOf(b.confidence);
   if (conf !== 0) return conf;
   if (!!a.model.fast !== !!b.model.fast) return a.model.fast ? 1 : -1;
-  const va = isLadderVendor(a.model.meta?.family);
-  if (va !== isLadderVendor(b.model.meta?.family)) return va ? -1 : 1;
+  const va = isLadderVendor(modelFamily(a.model.modelId, a.model.meta));
+  if (va !== isLadderVendor(modelFamily(b.model.modelId, b.model.meta))) return va ? -1 : 1;
   const da = a.model.meta?.releaseDate ?? '';
   const db = b.model.meta?.releaseDate ?? '';
   if (da !== db) return da < db ? 1 : -1;

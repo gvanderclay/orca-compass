@@ -248,17 +248,20 @@ route without `--effort`.
   route JSON says when it was built. `orcacompass tiers` prints it. When a
   model the user expects is missing or sits in an odd tier, run `orcacompass
   refresh` (it rebuilds the table) before changing the config.
-- A model is routed in its home tier (the provider's own description of it,
-  else the built-in ladder) and, when the user has an Artificial Analysis key
-  (`ARTIFICIAL_ANALYSIS_API_KEY`), in every tier up or down to where the
-  benchmarks place it. Benchmark-placed routes are at most medium confidence
-  and `reasons` shows the numbers (`… tier frontier from benchmarks (Artificial
-  Analysis 58/64 = 0.98 of top, …)`). `benchmarkSource` is `network`, `cache`,
-  or `unavailable` (no key: say so once if the user asks why a model's tier
-  looks fixed). Models with neither get a capability score (The Model Index
-  score and price); `scoreSource` is `network`, `cache`, `snapshot`, or
-  `unavailable` (then only the lineup, family table, overrides and the Cursor
-  Auto rule place models).
+- A model's tier comes from your override, the provider's own description,
+  or the built-in family ladder. Models without one of those classifications
+  use the Model Index capability rating and output price from the maintained
+  repository file. The CLI combines those scores with Models.dev metadata
+  and discovered local models; no API key is required. Score-derived routes
+  are at most medium confidence and `reasons` shows the calculation.
+  `scoreSource` is `network`, `cache`, `snapshot`, or `unavailable`.
+  When scores are unavailable, descriptions, family rules, overrides and
+  Cursor Auto still apply. `orcacompass refresh` updates data and placements.
+- A model listed by the local agent can be routed before either downloaded
+  dataset includes it. Use the CLI's provider-description tier and recognized
+  family/version handling; do not invent scores or release dates for it.
+  Newer numeric releases within a recognized Claude/GPT family take priority
+  within the same agent and tier, subject to user settings and usage limits.
 
 Use `orcacompass status --json` to inspect discovery, pools, and skipped agents
 (each skipped agent carries its reason, such as `excluded by config` or

@@ -20,47 +20,83 @@ This page covers installing OrcaCompass, what happens the first time it runs
 
 ## Install
 
-### One-command install
+### Recommended install
+
+From your project directory, run:
 
 ```sh
-npx orcacompass install --global
+npx orcacompass install
 ```
 
-`npx` fetches the published package and runs its installer. It first installs
-the Skill through the [`skills`](https://github.com/vercel-labs/skills)
-installer, pointed at the package's own copy so the Skill always matches the
-CLI version, then installs the CLI globally (`npm install -g orcacompass`)
-unless `orcacompass` is already on PATH. It needs network access and asks
-which agents should receive the Skill. `--global` installs the Skill for your
-user, so it is available across projects. To install it only for one project,
-change to that project directory and run `npx orcacompass install` there. The
-CLI goes to npm's global folder either way; that prefix must be writable.
+The installer checks npm's global installation and installs or updates the
+shared CLI to its own version first. It then installs that version's Skill
+for the current project through [`skills`](https://github.com/vercel-labs/skills).
+It needs network access and asks which agents should receive the Skill.
+The CLI goes to npm's global folder in either scope; that prefix must be writable.
+Without `--global`, the interactive Skill installer can ask Project or Global;
+Project is preselected. Keep Project for a local installation. `--local` is an
+alias for this default flow; it does not suppress that question. With `--yes`,
+the project default is accepted automatically.
+
+### Other options
+
+```sh
+npx orcacompass install --global  # user-wide Skill, across projects
+npx orcacompass install --local   # project Skill, explicitly (the default)
+npx orcacompass update           # latest CLI and this project's Skill
+npx orcacompass uninstall        # remove this project's Skill
+```
+
+`update` checks npm for the latest release and runs that release's installer.
+It works even when an older installed CLI handles the command. Add `--global`
+to update the user-wide Skill. An already current CLI is kept and the Skill
+is refreshed. An older installer refuses to downgrade a newer CLI.
+
+If the CLI update fails, the Skill is left unchanged. If the Skill step
+fails, the updated CLI remains installed and you can retry the command.
+For a release that predates the `update` command, use
+`npx orcacompass@latest update` to download a current updater first.
+
+Local uninstall keeps the shared CLI because other projects may use it.
+`uninstall --global` removes the user-wide Skill and then the shared CLI.
+With `--skill-only` or a specific `--agent`, global uninstall keeps the CLI.
+Uninstall and updates preserve OrcaCompass preferences, caches and accounts.
 
 | Option | Effect |
 | --- | --- |
-| `-g`, `--global` | Install the Skill for your user instead of the current project |
-| `-y`, `--yes` | Accept the installer's defaults; needed without a terminal |
-| `-a`, `--agent <name>` | Select an installer agent name, such as `claude-code` or `codex`; repeatable |
-| `--skill-only` | Install only the Skill, without attempting a registry CLI install |
+| `-g`, `--global` | Manage the Skill for your user, across projects |
+| `-l`, `--local` | Manage this project's Skill; this is the default |
+| `-y`, `--yes` | Accept defaults; required without a terminal |
+| `-a`, `--agent <name>` | Select an agent such as `claude-code` or `codex`; repeatable |
+| `--skill-only` | Manage only the Skill; keep the shared CLI |
 
-For example, install for both agents across projects with:
+`--global` and `--local` cannot be combined. The options apply to `install`,
+`update` and `uninstall`.
+
+For example, install for both agents across projects:
 
 ```sh
 npx orcacompass install --global --agent claude-code --agent codex
 ```
 
 Keep Orca's own orchestration skill installed alongside it: OrcaCompass only
-recommends a route, Orca's skill explains how to launch and supervise workers.
+recommends a route; Orca's skill explains how to launch and supervise workers.
 
 ### Alternative: install the CLI, then the Skill
 
+From the project where you want the Skill, run:
+
 ```sh
-npm install -g orcacompass
-orcacompass install --skill-only --global
+npm install -g orcacompass@latest
+orcacompass install --skill-only
 ```
 
 This installs the same published version in two steps: the CLI first, then
-its matching Skill. The Skill options above also work with the second command.
+its matching Skill for the current project. Keep Project if the installer
+asks for scope. The CLI's `-g` makes the CLI available across projects; it
+does not make the Skill global. Add `--global` to the second command for a
+user-wide Skill, or `--local` to spell out the project default. The other
+Skill options above also work with the second command.
 
 ### From source
 
@@ -170,8 +206,10 @@ model for classification.
      dates, output prices and effort options for Anthropic, OpenAI, Google and
      xAI models. Fresh cache (24 h by default), then network, then stale cache,
      then the bundled snapshot.
-   - **The Model Index** (`https://themodelindex.org/data/models.json`):
-     capability scores and OpenRouter output prices, same fallback chain. A
+   - **Maintained model scores** (`data/modelindex-snapshot.json` on the public
+     OrcaCompass repository's `main` branch): capability scores and OpenRouter
+     output prices originally sourced from The Model Index. Users fetch the
+     reviewed repository copy, with the same cache and bundled fallback chain. A
      failure here only disables score placement; family-table routing still works.
    2b. **Discover agents** in parallel. For each one: find the executable,
    read its model list, note its effort levels and which usage pools it draws
@@ -182,7 +220,7 @@ model for classification.
    `agy models` runs with its background auto-updater off, so listing models
    never updates Antigravity; `agy` still updates itself when you or Orca run it.
    2c. **Place every model**: overrides, the provider's lineup words, the
-   built-in ladder, Artificial Analysis benchmarks, then the capability score
+   built-in ladder, then the capability score
    (see [Tiers and routing](tiers-and-routing.md)). The result is written to
    `placements.json`; `orcacompass tiers` prints it.
 3. **Read usage** with `orca account list --json` (20 s timeout). Each agent gets

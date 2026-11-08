@@ -41,24 +41,6 @@ export interface RatedModel {
   open?: boolean;
 }
 
-/** An Artificial Analysis model at its strongest effort, trimmed to what placement uses (prices in USD per million tokens). */
-export interface Benchmark {
-  /** The strongest effort's slug, e.g. claude-opus-5-5. */
-  slug: string;
-  /** Every effort variant's slug, for matching ids such as gemini-3-8-flash-high. */
-  slugs: string[];
-  /** The model name without its effort, e.g. "Claude Opus 5.5". */
-  name: string;
-  creator: string;
-  date: string;
-  intelligence: number;
-  engineering?: number;
-  costPerTask?: number;
-  in?: number;
-  out?: number;
-  tokensPerSecond?: number;
-}
-
 export type DataSource = 'network' | 'cache' | 'snapshot';
 
 export interface UsagePool {
@@ -110,11 +92,11 @@ export interface LaunchModel {
 /** One tier a model may serve and why; `detail` carries the numbers or words behind it. */
 export interface Classification {
   tier: Tier;
-  source: 'override' | 'lineup' | 'family' | 'benchmark' | 'score' | 'auto';
-  /** The numbers or words behind a placement, e.g. "benchmarks (Artificial Analysis 58/64 = 0.98 of top, ...)". */
+  source: 'override' | 'lineup' | 'family' | 'score' | 'auto';
+  /** The numbers or provider description behind a placement. */
   detail?: string;
 }
-export const CLASSIFICATION_SOURCES: readonly Classification['source'][] = ['override', 'lineup', 'family', 'benchmark', 'score', 'auto'];
+export const CLASSIFICATION_SOURCES: readonly Classification['source'][] = ['override', 'lineup', 'family', 'score', 'auto'];
 
 export interface AgentDiscovery {
   agent: AgentId;
@@ -153,15 +135,13 @@ export type BuiltWith = Pick<Config, 'tierOverrides' | 'cursorAuto' | 'scoreWeig
 
 /** Every model's tiers, built from every source at once and cached for `placementsTtlHours`. */
 export interface PlacementTable {
-  schemaVersion: 1;
+  schemaVersion: 2;
   version: string;
   builtAt: number;
   builtWith: BuiltWith;
   sources: {
     catalog: SourceInfo;
     scores: SourceInfo | null;
-    benchmarks: SourceInfo | null;
-    benchmarkScale: { top: number; medianValue: number | null } | null;
     scoreScale: { cuts: number[] } | null;
   };
   agents: PlacedAgent[];
@@ -184,8 +164,6 @@ export interface Environment {
   catalogSource: DataSource;
   /** Where the capability scores came from; absent when the table was built without them. */
   scoreSource?: DataSource;
-  /** Where the Artificial Analysis benchmarks came from; absent when the table was built without them. */
-  benchmarkSource?: DataSource;
   /** Models an agent refused at launch recently (see `orcacompass verify`); routing skips them. */
   rejections?: Rejection[];
 }

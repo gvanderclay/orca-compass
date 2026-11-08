@@ -90,6 +90,19 @@ describe('loadPlacements', () => {
     expect((await loadPlacements(DEFAULT_CONFIG, fakeDeps)).rebuilt).toBe('invalid');
   });
 
+  it('rebuilds a fresh schema-1 placement cache before old classifications can route', async () => {
+    const first = await loadPlacements(DEFAULT_CONFIG, fakeDeps);
+    const legacy = { ...first.table, schemaVersion: 1 };
+    const opus = legacy.agents.find((a) => a.agent === 'claude')!.models.find((m) => m.modelId === 'claude-opus-5-5')!;
+    opus.placements = [{ tier: 'frontier', source: 'benchmark' as any }];
+    opus.tiers = ['frontier'];
+    writeFileSync(join(home, 'cache', 'placements.json'), JSON.stringify(legacy));
+    const rebuilt = await loadPlacements(DEFAULT_CONFIG, { ...fakeDeps, now: NOW + HOUR });
+    expect(rebuilt.rebuilt).toBe('invalid');
+    expect(rebuilt.table.schemaVersion).toBe(2);
+    expect(rebuilt.table.agents.find((a) => a.agent === 'claude')!.models.find((m) => m.modelId === 'claude-opus-5-5')!.tiers).toEqual(['advanced']);
+  });
+
   it('keeps going when the table cannot be saved', async () => {
     const cacheDir = join(home, 'cache');
     writeFileSync(cacheDir, 'a file');
@@ -115,7 +128,6 @@ describe('gather', () => {
     expect(env.now).toBe(NOW);
     expect(env.catalogSource).toBe('snapshot');
     expect(env.scoreSource).toBe('snapshot');
-    expect(env.benchmarkSource).toBeUndefined();
     expect(env.discoveries.map((d) => d.agent)).toEqual([...AGENT_IDS]);
     expect(env.discoveries.find((d) => d.agent === 'muse')).toMatchObject({ installed: true, models: [] });
     expect(env.usage.grok.status).toBe('unavailable');

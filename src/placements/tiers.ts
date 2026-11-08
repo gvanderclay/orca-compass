@@ -1,7 +1,5 @@
-import { benchmarkTier, matchBenchmark, type BenchmarkScale } from './benchmark.js';
 import { buildScale, combinedScore, matchRating, normalizeModelId, scoreTier, type Anchor, type ScoreScale } from './score.js';
 import type { Classification, Config, LaunchModel, ModelMeta, RatedModel, Tier } from '../types.js';
-import { TIERS } from '../types.js';
 
 // Families are stable across releases, so new versions get a tier automatically.
 export const FAMILY_TIERS: Record<string, Tier> = {
@@ -16,6 +14,20 @@ export const FAMILY_TIERS: Record<string, Tier> = {
   'gemini-flash-lite': 'light',
 };
 
+/** Numeric releases of known Claude/GPT families; unrelated names and moving aliases are not inferred. */
+export function knownModelVersion(modelId: string): { family: string; version: number[] } | undefined {
+  const id = normalizeModelId(modelId).replace(/-\d{8}$/, '');
+  const claude = /^claude-([a-z]+)-(\d+(?:-\d+)*)$/.exec(id);
+  const gpt = /^gpt-(\d+(?:-\d+)*)-([a-z]+)$/.exec(id);
+  const family = claude ? `claude-${claude[1]}` : gpt ? `gpt-${gpt[2]}` : undefined;
+  if (!family || !Object.hasOwn(FAMILY_TIERS, family)) return undefined;
+  const version = (claude ? claude[2] : gpt![1]).split('-').map(Number);
+  return version.every(Number.isSafeInteger) ? { family, version } : undefined;
+}
+
+/** Catalog family when available, otherwise a narrowly recognized versioned model family. */
+export const modelFamily = (modelId: string, meta?: ModelMeta): string | undefined => meta?.family ?? knownModelVersion(modelId)?.family;
+
 /** Model lines matched by id, where the family is too broad: Models.dev files Gemini Argon under `gemini` and every Grok under `grok`. */
 export const MODEL_LINE_TIERS: readonly { pattern: RegExp; tier: Tier }[] = [
   { pattern: /^gemini(-\d+)+-argon(-|$)/, tier: 'frontier' },
@@ -25,10 +37,9 @@ export const MODEL_LINE_TIERS: readonly { pattern: RegExp; tier: Tier }[] = [
 
 export type { Classification } from '../types.js';
 
-/** Scales the placements draw on: The Model Index (score) and Artificial Analysis (benchmark); either may be missing. */
+/** The optional Model Index score scale used for models outside the family table. */
 export interface Scales {
   score?: ScoreScale;
-  benchmark?: BenchmarkScale;
 }
 
 /** Model Index ids of a table family: claude-opus-5-5 for claude-opus, gpt-6-1-sol for gpt-sol. */
@@ -72,7 +83,7 @@ function byScore(modelId: string, scale: ScoreScale): Classification | undefined
 function byOverride(modelId: string, meta: ModelMeta | undefined, config: Config): Classification | undefined {
   const { tierOverrides } = config;
   if (Object.hasOwn(tierOverrides, modelId)) return { tier: tierOverrides[modelId], source: 'override' };
-  const family = meta?.family;
+  const family = modelFamily(modelId, meta);
   if (family !== undefined && Object.hasOwn(tierOverrides, family)) return { tier: tierOverrides[family], source: 'override' };
   return undefined;
 }
@@ -81,7 +92,7 @@ function byOverride(modelId: string, meta: ModelMeta | undefined, config: Config
 function byTable(modelId: string, meta: ModelMeta | undefined): Classification | undefined {
   const line = MODEL_LINE_TIERS.find((l) => l.pattern.test(normalizeModelId(modelId)));
   if (line) return { tier: line.tier, source: 'family' };
-  const family = meta?.family;
+  const family = modelFamily(modelId, meta);
   if (family !== undefined && Object.hasOwn(FAMILY_TIERS, family)) return { tier: FAMILY_TIERS[family], source: 'family' };
   return undefined;
 }
@@ -115,37 +126,13 @@ export function isCursorAuto(model: LaunchModel, config: Config): boolean {
 
 const quoted = (s: string): string => `the provider's lineup ("${s}")`;
 
-/**
- * Every tier a discovered model is routed in. Overrides and Cursor Auto win; then the model's home tier (the
- * provider's lineup words, else the family table) and its benchmark tier span a range, and it is routed in
- * every tier between them. One signal alone places it in one tier; with neither, the capability score does.
- */
+/** Cursor Auto serves Light and Daily; other models use overrides, provider lineup, family, then score. */
 export function classifyLaunch(model: LaunchModel, config: Config, scales: Scales = {}): Classification[] {
   if (isCursorAuto(model, config)) return CURSOR_AUTO_TIERS.map((tier) => ({ tier, source: 'auto' }));
   const override = byOverride(model.modelId, model.meta, config);
   if (override) return [override];
-
   const lineup = lineupTier(model.lineup);
-  const home: Classification | undefined = lineup
-    ? { tier: lineup, source: 'lineup', detail: quoted(model.lineup!) }
-    : byTable(model.modelId, model.meta);
-  const matched = scales.benchmark && matchBenchmark(model.modelId, scales.benchmark.benchmarks);
-  const bench = matched && scales.benchmark ? benchmarkTier(scales.benchmark, matched) : undefined;
-
-  if (!bench) {
-    if (home) return [home];
-    const score = scales.score && byScore(model.modelId, scales.score);
-    return score ? [score] : [];
-  }
-  if (!home) return [{ tier: bench.tier, source: 'benchmark', detail: bench.detail }];
-
-  const homeWords = home.source === 'lineup' ? quoted(model.lineup!) : 'the family table';
-  if (home.tier === bench.tier) return [{ ...home, detail: `${homeWords}, confirmed by ${bench.detail}` }];
-  const lo = Math.min(TIERS.indexOf(home.tier), TIERS.indexOf(bench.tier));
-  const hi = Math.max(TIERS.indexOf(home.tier), TIERS.indexOf(bench.tier));
-  return TIERS.slice(lo, hi + 1).map((tier) => {
-    if (tier === home.tier) return { tier, source: home.source, detail: `${homeWords}; benchmarks place it ${bench.tier} (${bench.detail.slice('benchmarks ('.length)}` };
-    if (tier === bench.tier) return { tier, source: 'benchmark', detail: `${bench.detail}; ${homeWords} places it ${home.tier}` };
-    return { tier, source: 'benchmark', detail: `between ${homeWords.replace(/ \(".*"\)$/, '')} (${home.tier}) and benchmarks (${bench.tier})` };
-  });
+  if (lineup) return [{ tier: lineup, source: 'lineup', detail: quoted(model.lineup!) }];
+  const classification = byTable(model.modelId, model.meta) ?? (scales.score ? byScore(model.modelId, scales.score) : undefined);
+  return classification ? [classification] : [];
 }

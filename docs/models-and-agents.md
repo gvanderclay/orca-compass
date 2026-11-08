@@ -63,33 +63,24 @@ prints their result. The first rule that applies wins:
 1. Your `tierOverrides` for the exact model ID.
 2. Your `tierOverrides` for the model's family.
 3. Cursor's `auto`: Light and Daily (setting `cursorAuto`).
-4. The model's **home tier** and its **benchmark tier**, and every tier
-   between them. The home tier is what the provider says about the model in
-   its own catalog ("For your toughest challenges" is Frontier, "Fastest for
-   quick answers" is Light; Claude Code's account catalog and Codex's model
-   cache carry these words), or else the built-in ladder below. The benchmark
-   tier comes from [Artificial Analysis](https://artificialanalysis.ai)
-   intelligence and engineering indices and token prices, read with your own
-   API key (`ARTIFICIAL_ANALYSIS_API_KEY`, see
-   [Configuration](configuration.md#data-sources)). When the two agree, or only
-   one is known, the model sits in that one tier.
-5. The capability score: The Model Index score and output price, weighted
-   40/60 and compared against the newest Claude and GPT models of the ladder.
-   Placed models are capped at Advanced. Today's cut points are
-   `0.34/0.72/0.90` (Light/Daily, Daily/Advanced, Advanced/Frontier).
-6. Otherwise the model is unclassified and never routed.
+4. The provider's own description ("For your toughest challenges" is Frontier,
+   "Fastest for quick answers" is Light; Claude Code's account catalog and
+   Codex's model cache carry these words).
+5. The built-in model-line and family rules below.
+6. The capability score: the repository's Model Index rating and output price,
+   weighted 40/60 after normalizing the rating and logarithm of price against
+   reference models. This fallback is capped at Advanced.
+7. Otherwise the model is unclassified and never routed.
 
-A model that spans two tiers, such as Opus (home Advanced, benchmarked
-Frontier), is a candidate in both. Its home tier is a high-confidence route;
-the benchmark tier is at most medium confidence. Within one agent the home
-model keeps its tier unless the other has more than 20 points more headroom:
-for a Frontier job Fable goes before Opus until Fable's pool is much tighter
-or blocked, for a Daily job Sonnet before Haiku. Between agents, usage alone
-decides. The numbers behind every placement appear in `orcacompass status`
-and in a route's `reasons`.
+A model normally serves one tier; Cursor Auto serves Light and Daily.
+Score-based placement is at most medium confidence. The words and numbers
+behind every placement appear in `orcacompass status` and route `reasons`.
 
 Within an agent, only the newest release of each family per tier is kept;
-older ones are dropped silently. When two routes tie on usage, Claude and GPT
+recognized Claude/GPT family IDs can be compared by numeric version before
+the metadata sources catch up. Provider descriptions also classify newly named
+models missing from those sources. Older releases are dropped silently.
+When two routes tie on usage, Claude and GPT
 models go before other vendors, then the newest release wins.
 
 ### Built-in family ladder

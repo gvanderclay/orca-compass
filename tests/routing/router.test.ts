@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../../src/config.js';
 import { agentSkipReason, formatLaunch, route } from '../../src/routing/router.js';
 import type { Config, Effort, Environment, LaunchModel, RouteRequest } from '../../src/types.js';
-import { toBenchmarks } from '../../src/placements/sources/artificialanalysis.js';
 import { toRatings } from '../../src/placements/sources/modelindex.js';
 import {
   CURSOR_AUTO, cursorVariant, machineEnv, onlyModels, placed, withCursorModels, withPool, withUsageStatus, withUsageUpdatedAt,
@@ -12,58 +11,26 @@ import {
 const env = machineEnv();
 const r = (req: RouteRequest) => route(req, env, DEFAULT_CONFIG);
 
-describe('route with benchmarks', () => {
-  // Invented numbers; see tests/fixtures/artificialanalysis-mini.json. Opus measures Frontier, Fable Advanced.
-  const benchmarks = toBenchmarks([JSON.parse(readFileSync(new URL('../fixtures/artificialanalysis-mini.json', import.meta.url), 'utf8'))]);
-  const withBench: Environment = machineEnv({ benchmarks });
-  const rb = (req: RouteRequest) => route(req, withBench, DEFAULT_CONFIG);
-
-  it('routes by the stored placements, not by recomputing them', () => {
-    expect('benchmarks' in withBench).toBe(false);
-    expect(withBench.benchmarkSource).toBe('cache');
-    // A table that (by override) files Fable as Light is followed as written.
+describe('stored placement routing', () => {
+  it('uses stored overrides without recomputing model tiers', () => {
     const edited: Environment = {
-      ...withBench,
-      discoveries: withBench.discoveries.map((d) => (d.agent !== 'claude' ? d : {
+      ...env,
+      discoveries: env.discoveries.map((d) => (d.agent !== 'claude' ? d : {
         ...d,
         models: d.models.map((m) => (m.modelId !== 'claude-fable-5-1' ? m : { ...m, placements: [{ tier: 'light' as const, source: 'override' as const }], tiers: ['light' as const] })),
       })),
     };
     const light = route({ tier: 'light', agents: ['claude'] }, edited, DEFAULT_CONFIG);
     expect([light.route?.model, ...light.alternatives.map((a) => a.model)]).toContain('claude-fable-5-1');
-    expect(route({ tier: 'frontier', agents: ['claude'], noDowngrade: true }, edited, DEFAULT_CONFIG).route?.model).toBe('claude-opus-5-5');
+    expect(route({ tier: 'frontier', agents: ['claude'], noDowngrade: true }, edited, DEFAULT_CONFIG).status).toBe('none');
   });
 
-  it('lets a model measured a tier above its family take that tier when it has much more headroom', () => {
-    // Fable's pool: 18% headroom; the shared weekly pool Opus draws on: 45%. More than 20 points apart.
-    const d = rb({ tier: 'frontier', agents: ['claude'] });
-    expect(d).toMatchObject({ status: 'ok', tier: 'frontier', downgraded: false, route: { model: 'claude-opus-5-5', effort: 'high' }, confidence: 'medium' });
-    expect(d.reasons).toContainEqual(expect.stringMatching(/^claude-opus-5-5: tier frontier from benchmarks \(Artificial Analysis 58\/64 = 0\.98 of top, .*\); the family table places it advanced$/));
-    expect(d.alternatives.map((a) => a.model)).toContain('claude-fable-5-1');
-  });
-
-  it('keeps the home model of the tier ahead of a benchmark-placed one of the same agent within 20 points of headroom', () => {
-    // Fable at 60% used: 34% headroom, 11 points under Opus's 45%: the provider's frontier pick keeps the job.
-    const closer = withPool(withBench, 'claude', 'fableWeekly', { usedPercent: 60 });
-    const d = route({ tier: 'frontier', agents: ['claude'] }, closer, DEFAULT_CONFIG);
-    expect(d.route).toEqual({ agent: 'claude', model: 'claude-fable-5-1', effort: 'high' });
-    expect(d.alternatives[0]?.model).toBe('claude-opus-5-5');
-    // Between agents headroom alone decides: Claude Fable (34%) beats Cursor Fable (counted as 20%) here, and
-    // with Fable at 18% Claude Opus (45%) takes the job from both.
-    expect(route({ tier: 'frontier' }, closer, DEFAULT_CONFIG).route).toEqual({ agent: 'claude', model: 'claude-fable-5-1', effort: 'high' });
-    expect(rb({ tier: 'frontier' }).route).toEqual({ agent: 'claude', model: 'claude-opus-5-5', effort: 'high' });
-  });
-
-  it('prefers the home tier of the lineup or family on a usage tie', () => {
-    expect(rb({ tier: 'daily', agents: ['claude'] }).route?.model).toBe('claude-sonnet-5-5');
-    expect(rb({ tier: 'advanced', agents: ['claude'] }).route?.model).toBe('claude-opus-5-5');
-    expect(rb({ tier: 'light', agents: ['claude'] }).route?.model).toBe('claude-haiku-5-5');
-    expect(rb({ tier: 'daily', agents: ['claude'] }).alternatives.map((a) => a.model)).toContain('claude-haiku-5-5');
-  });
-
-  it('keeps a Light model out of Advanced, and reports the benchmark source', () => {
-    expect(rb({ tier: 'advanced' }).alternatives.map((a) => a.model)).not.toContain('claude-haiku-5-5');
-    expect(rb({ tier: 'advanced' }).alternatives.map((a) => a.model)).not.toContain('gpt-6-luna');
+  it('ranks usage headroom before classification origin within one agent', () => {
+    const config: Config = { ...DEFAULT_CONFIG, tierOverrides: { 'claude-opus-5-5': 'frontier' } };
+    const candidates = placed(withPool(env, 'claude', 'fableWeekly', { usedPercent: 60 }), { config });
+    const decision = route({ tier: 'frontier', agents: ['claude'] }, candidates, config);
+    expect(decision.route?.model).toBe('claude-opus-5-5');
+    expect(decision.alternatives[0]?.model).toBe('claude-fable-5-1');
   });
 });
 

@@ -20,9 +20,9 @@ never of spare capacity.
 ## When placement runs
 
 Placement is part 1 of OrcaCompass and runs only when the placement table is
-built: every agent's model list is read, Models.dev, The Model Index and
-Artificial Analysis are loaded, the scales below are computed once over the
-whole datasets, and every model's tiers are written to `placements.json` in
+built: every agent's model list is read, Models.dev metadata and the repository's
+Model Index scores are loaded, the score scale is computed once over the
+ratings, and every model's tiers are written to `placements.json` in
 the cache (`src/placements/build.ts`, `table.ts`). The table is reused for
 `placementsTtlHours` (5 hours by default) and rebuilt by the next command when
 it is older than that, was built by another OrcaCompass version or with other
@@ -40,33 +40,23 @@ once the table exists.
 ## How a model gets its tier
 
 For every discovered model, the first rule that applies wins
-(`classifyModel` in `src/placements/tiers.ts`):
+(`classifyLaunch` in `src/placements/tiers.ts`):
 
 1. **Your override for the exact model id** (`tierOverrides`, e.g.
    `"gemma4:12b": "light"`).
 2. **Your override for the model's Models.dev family** (e.g. `"grok": "daily"`).
 3. **Cursor's `auto`**: Light and Daily, when `cursorAuto` is on and you have
    no `tierOverrides.auto`.
-4. **The home tier and the benchmark tier, and every tier between them.** The
-   home tier is the provider's lineup (below) when the provider describes the
-   model, else a built-in model line matched by id (Gemini Argon
-   `gemini-<n>-argon…` is Frontier; Grok 4.7 to 4.9 and Grok 5 and later are
-   Advanced), else the built-in family ladder (below). The benchmark tier is
-   the benchmark placement (below). When they agree, or only one is known, the
-   model has that one tier.
-5. **The capability score** (below), capped at Advanced, when neither a home
-   nor a benchmark tier is known.
-6. Otherwise the model is **unclassified** and never routed. `status` lists
-   these.
+4. **The provider's description**, when it supplies a usable tier (below).
+5. **A built-in model line**, then **the family ladder** (below): Gemini Argon
+   is Frontier; Grok 4.7 to 4.9 and Grok 5 and later are Advanced.
+6. **The capability score** (below), capped at Advanced, when the previous
+   rules do not assign a tier.
+7. Otherwise the model is **unclassified** and never routed. `status` lists it.
 
-A model placed in two or three tiers is a candidate in each of them. The entry
-for its home tier has the source `lineup` or `family` and high confidence; the
-other entries have the source `benchmark` and at most medium confidence.
-Within one agent, the home model of a tier goes before a model that only
-benchmarks into it unless that model has more than 20 points more headroom
-(`HOME_TIER_MARGIN`): for a Frontier job on Claude Code, Fable keeps the job
-while Opus's pool is at most 20 points roomier, and Opus takes it beyond that
-or when Fable's pool is blocked. Between agents, headroom alone decides.
+A model normally receives one tier. Cursor Auto is the exception: it can
+serve Light and Daily. Score-derived placement is at most medium confidence;
+provider descriptions and family rules do not impose that confidence cap.
 
 ### The provider's lineup
 
@@ -86,40 +76,6 @@ tasks" is Advanced, "Most efficient for simpler tasks" is Daily, "Fast and
 affordable model for easier tasks." is Light, and "GPT-6.1 Terra Codex model."
 says nothing (the family ladder applies). Cursor, Antigravity, Grok and
 OpenCode listings carry no descriptions.
-
-### Benchmark placement
-
-With your own [Artificial Analysis](https://artificialanalysis.ai) Data API
-key in `ARTIFICIAL_ANALYSIS_API_KEY`, `orcacompass refresh` (or any route once
-a day) fetches the free-tier model list into your cache; nothing from it ships
-with OrcaCompass. Each model is represented by its strongest effort variant.
-
-```text
-capability = (intelligence index + engineering index) / 2    (intelligence alone when engineering is missing)
-price      = (3 × input + output) / 4                         USD per million tokens, Artificial Analysis's blend
-value      = capability / price                               intelligence per token cost
-placement  = capability / top + 0.05 × log10(median value / value)
-```
-
-- `top` is the highest capability of any benchmarked model, so placements are
-  relative to the best model measured and drift down as better models appear.
-- The value term moves a model up by 0.05 for every tenfold it is dearer than
-  the median points per dollar, and down for every tenfold it is cheaper:
-  premium pricing is the vendor's own capability signal, and cheap
-  intelligence belongs in the everyday tiers. Models without a price get no
-  shift.
-- Cuts are fixed at `0.55 / 0.78 / 0.93` of the top (Light/Daily,
-  Daily/Advanced, Advanced/Frontier). Unlike the capability score, benchmarks
-  can place a model in Frontier.
-- The placement is explained in `status` and in `reasons`, e.g.
-  `claude-opus-5-5: tier frontier from benchmarks (Artificial Analysis 58/64 =
-  0.98 of top, 7.6 points per dollar vs median 13.4 → 1.00; cuts
-  0.55/0.78/0.93); the provider's lineup ("For complex work and everyday
-  tasks") places it advanced`.
-
-Matching a discovered id to a benchmark normalizes both sides and drops a
-trailing date (`claude-haiku-5-5-20261007`), effort (`gemini-3.8-flash-high`)
-or `.0` version; an effort variant's slug counts as its model's.
 
 ### Built-in family ladder
 
@@ -141,19 +97,31 @@ are placed by the capability score.
 ### Newest release per family
 
 Within one agent, only the newest release of each family per tier is kept.
+For recognized Claude and GPT families, numeric model versions determine the
+newer release even before Models.dev includes it. Family identity can be
+inferred from those recognized IDs when metadata is missing; no release date
+is invented. A newly named model can still get its tier from the provider's
+description, but unrelated names are not treated as versions of one family.
+When a recognized family contains both numbered releases and unversioned
+aliases, explicit numbered releases take priority. An alias's date cannot
+override their version ordering.
 `claude-opus-4-8` and `claude-opus-5-5` are both Advanced on Claude Code; only
 `claude-opus-5-5` is routable. Older releases are dropped silently: no command
-lists them as superseded, and they do not appear under `skipped`. Models without a
-release date count as oldest. Score placement can split a family across tiers
+lists them as superseded, and they do not appear under `skipped`. Release dates
+break ties between equal numeric versions, or decide between entries with no
+comparable numeric version; a missing date counts as oldest. Score placement
+can split a family across tiers
 (Grok 4.6 Daily, Grok 4.5 Light), in which case each tier keeps its own newest.
 
 Superseded models cannot be preferred back in with `orcacompass prefer`.
 
 ### The capability score
 
-Models with neither a home tier nor a benchmark are placed by combining two public numbers from
+Models without a provider-description or family tier are placed by combining two public numbers from
 [The Model Index](https://themodelindex.org): the model's **index score**
 (intelligence) and its **OpenRouter output price** in USD per million tokens.
+These values are maintained in `data/modelindex-snapshot.json` and downloaded
+from the OrcaCompass repository, with cached and bundled copies for offline use.
 Price acts as a capability proxy (vendors charge more for stronger models),
 not as a cost-saving reward.
 

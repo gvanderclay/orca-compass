@@ -33,6 +33,7 @@ export function fromOrcaCatalog(text: string | undefined, agent: string): RawMod
     .map((m) => ({
       id: typeof m.resolvedModel === 'string' ? m.resolvedModel : m.id,
       efforts: (m.efforts ?? []).map((e: { value?: unknown }) => String(e?.value)),
+      ...description(m.description),
     }));
 }
 
