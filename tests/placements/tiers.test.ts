@@ -2,10 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../../src/config.js';
 import { combinedScore } from '../../src/placements/score.js';
-import { benchmarkScale } from '../../src/placements/benchmark.js';
 import { classifyLaunch, classifyModel, FAMILY_TIERS, findAnchors, lineupTier, scoreScale } from '../../src/placements/tiers.js';
 import { TIERS, type Config, type LaunchModel, type ModelMeta, type RatedModel } from '../../src/types.js';
-import { toBenchmarks } from '../../src/placements/sources/artificialanalysis.js';
 import { toRatings } from '../../src/placements/sources/modelindex.js';
 
 const m = (family: string | undefined, outputCost?: number): ModelMeta => ({ id: 'x', provider: 'p', name: 'x', family, outputCost });
@@ -109,55 +107,34 @@ describe('lineupTier', () => {
   });
 });
 
-describe('classifyLaunch with benchmarks and the provider lineup', () => {
-  // Invented numbers; see tests/fixtures/artificialanalysis-mini.json.
-  const benchmark = benchmarkScale(toBenchmarks([JSON.parse(readFileSync(new URL('../fixtures/artificialanalysis-mini.json', import.meta.url), 'utf8'))]))!;
-  const scales = { score: scale, benchmark };
+describe('classifyLaunch with provider descriptions', () => {
   const launch = (modelId: string, family?: string, lineup?: string): LaunchModel => ({
     agent: 'claude', modelId, meta: family ? m(family) : undefined, efforts: [], launch: { kind: 'flag', model: modelId }, poolNames: [],
     ...(lineup ? { lineup } : {}),
   });
-  const tiersOf = (model: LaunchModel, cfg = DEFAULT_CONFIG) => classifyLaunch(model, cfg, scales).map((c) => `${c.tier}:${c.source}`);
+  const scales = { score: scale };
 
-  it('routes a model in every tier between the provider lineup and the benchmarks', () => {
-    expect(tiersOf(launch('claude-haiku-5-5', 'claude-haiku', 'Fastest for quick answers'))).toEqual(['light:lineup', 'daily:benchmark']);
-    expect(tiersOf(launch('claude-fable-5-1', 'claude-fable', 'For your toughest challenges'))).toEqual(['advanced:benchmark', 'frontier:lineup']);
-    expect(tiersOf(launch('claude-opus-5-5', 'claude-opus', 'For complex work and everyday tasks'))).toEqual(['advanced:lineup', 'frontier:benchmark']);
-    expect(tiersOf(launch('gpt-6-1-terra', 'gpt-terra', 'Fastest for quick answers'))).toEqual(['light:lineup', 'daily:benchmark', 'advanced:benchmark']);
-  });
-
-  it('uses the family table as the home tier when the provider says nothing', () => {
-    expect(tiersOf(launch('gpt-6.1-terra', 'gpt-terra', 'GPT-6.1 Terra Codex model.'))).toEqual(['daily:family', 'advanced:benchmark']);
-    expect(tiersOf(launch('grok-4.7', 'grok'))).toEqual(['daily:benchmark', 'advanced:family']);
-    expect(tiersOf(launch('gemini-4-argon', 'gemini'))).toEqual(['advanced:benchmark', 'frontier:family']);
-  });
-
-  it('keeps one tier when the signals agree, or only one exists', () => {
-    expect(classifyLaunch(launch('gpt-6-astra', 'gpt-astra', 'Frontier intelligence for the most demanding work.'), DEFAULT_CONFIG, scales)).toEqual([
-      { tier: 'frontier', source: 'lineup', detail: expect.stringMatching(/^the provider's lineup \("Frontier intelligence for the most demanding work\."\), confirmed by benchmarks \(Artificial Analysis 57\/62 /) },
+  it('uses one provider tier even when the family or score would give another tier', () => {
+    expect(classifyLaunch(launch('gpt-6.1-terra', 'gpt-terra', 'Fastest for quick answers'), DEFAULT_CONFIG, scales)).toEqual([
+      { tier: 'light', source: 'lineup', detail: `the provider's lineup ("Fastest for quick answers")` },
     ]);
-    expect(tiersOf(launch('gpt-5.6-terra', 'gpt-terra', 'Older balanced model for straightforward work.'))).toEqual(['daily:lineup']);
-    expect(tiersOf(launch('gpt-5.6-terra', 'gpt-terra'))).toEqual(['daily:family']);
-    expect(tiersOf(launch('kimi-k3.1-pro', 'kimi'))).toEqual(['daily:benchmark']);
-    expect(tiersOf(launch('grok-4.6', 'grok'))).toEqual(['daily:score']);
-    expect(tiersOf(launch('mystery'))).toEqual([]);
+    expect(classifyLaunch(launch('muse-wonder-1.0', 'muse', 'For your toughest challenges'), DEFAULT_CONFIG, scales)).toEqual([
+      { tier: 'frontier', source: 'lineup', detail: `the provider's lineup ("For your toughest challenges")` },
+    ]);
   });
 
-  it('explains both signals in each entry', () => {
-    const [light, daily] = classifyLaunch(launch('claude-haiku-5-5', 'claude-haiku', 'Fastest for quick answers'), DEFAULT_CONFIG, scales);
-    expect(light.detail).toMatch(/^the provider's lineup \("Fastest for quick answers"\); benchmarks place it daily \(Artificial Analysis 36\/42 = 0\.63 of top, 195\.0 points per dollar vs median 13\.4 → 0\.57; cuts 0\.55\/0\.78\/0\.93\)$/);
-    expect(daily.detail).toMatch(/^benchmarks \(Artificial Analysis 36\/42 .*\); the provider's lineup \("Fastest for quick answers"\) places it light$/);
-    const [, middle] = classifyLaunch(launch('gpt-6-1-terra', 'gpt-terra', 'Fastest for quick answers'), DEFAULT_CONFIG, scales);
-    expect(middle.detail).toBe('between the provider\'s lineup (light) and benchmarks (advanced)');
-    const [home] = classifyLaunch(launch('grok-4.7', 'grok'), DEFAULT_CONFIG, scales).filter((c) => c.source === 'family');
-    expect(home.detail).toMatch(/^the family table; benchmarks place it daily \(/);
+  it('uses family then Model Index when the provider description does not identify a tier', () => {
+    expect(classifyLaunch(launch('gpt-6.1-terra', 'gpt-terra', 'GPT-6.1 Terra Codex model.'), DEFAULT_CONFIG, scales)).toEqual([{ tier: 'daily', source: 'family' }]);
+    expect(classifyLaunch(launch('grok-4.7', 'grok'), DEFAULT_CONFIG, scales)).toEqual([{ tier: 'advanced', source: 'family' }]);
+    expect(classifyLaunch(launch('grok-4.6', 'grok'), DEFAULT_CONFIG, scales)).toEqual([{ tier: 'daily', source: 'score', detail: expect.stringContaining('Model Index') }]);
+    expect(classifyLaunch(launch('mystery'), DEFAULT_CONFIG, scales)).toEqual([]);
   });
 
-  it('lets overrides and Cursor auto win over both signals', () => {
-    const cfg: Config = { ...DEFAULT_CONFIG, tierOverrides: { 'claude-opus-5-5': 'light', 'claude-haiku': 'frontier' } };
-    expect(tiersOf(launch('claude-opus-5-5', 'claude-opus', 'For complex work and everyday tasks'), cfg)).toEqual(['light:override']);
-    expect(tiersOf(launch('claude-haiku-5-5', 'claude-haiku', 'Fastest for quick answers'), cfg)).toEqual(['frontier:override']);
-    expect(tiersOf({ ...launch('auto'), agent: 'cursor' })).toEqual(['light:auto', 'daily:auto']);
+  it('keeps manual overrides ahead of provider descriptions and preserves Cursor Auto', () => {
+    const config: Config = { ...DEFAULT_CONFIG, tierOverrides: { 'claude-opus-5-5': 'light', 'claude-haiku': 'frontier' } };
+    expect(classifyLaunch(launch('claude-opus-5-5', 'claude-opus', 'For complex work'), config, scales)).toEqual([{ tier: 'light', source: 'override' }]);
+    expect(classifyLaunch(launch('claude-haiku-5-5', 'claude-haiku', 'Fastest for quick answers'), config, scales)).toEqual([{ tier: 'frontier', source: 'override' }]);
+    expect(classifyLaunch({ ...launch('auto'), agent: 'cursor' }, config, scales)).toEqual([{ tier: 'light', source: 'auto' }, { tier: 'daily', source: 'auto' }]);
   });
 });
 

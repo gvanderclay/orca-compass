@@ -41,11 +41,3 @@ International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/.
 
 The snapshots retain selected fields and add a retrieval timestamp; these
 attributions do not change the terms applicable to the source data.
-
-Benchmark placement uses data from Artificial Analysis
-(https://artificialanalysis.ai) fetched at run time with the user's own
-Data API key. That data is licensed to the key's owner under the Artificial
-Analysis Data Platform Terms; it is cached on the user's machine only and no
-part of it is bundled with this package. Tier placements derived from it are
-OrcaCompass's own and are neither endorsed by nor the responsibility of
-Artificial Analysis. "Source: Artificial Analysis (artificialanalysis.ai)".

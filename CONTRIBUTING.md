@@ -65,11 +65,23 @@ Skill. Build first; the smoke check deliberately skips lifecycle scripts. It
 does not contact Orca or agent accounts. SQLite integration tests create their
 own temporary database; they never open your Orca profile.
 
+After installer changes, build and run `npm run test:install`. It exercises
+real npm/npx and `skills@1` in temporary profiles: fresh install, upgrade,
+repeat install, downgrade refusal and a failed CLI update. A local registry
+serves temporary test versions; nothing is published and your installed
+CLI, Skills and settings are untouched. It downloads `skills@1` from npm
+and prints the temporary folder containing the logs.
+
 CI runs the suite, type check, build and package smoke check on Windows, macOS
 and Linux with Node.js 24. A separate job checks the compiled package on Node.js
 20, the minimum supported runtime. The user guide builds on Linux in CI.
 
 ## User guide
+
+For model-data updates, follow [Model data](docs/model-data.md). Review changes
+to the two snapshots in `data/`, preserve source attribution, and run the tests.
+A data-only update on public `main` reaches installed clients through refresh;
+it does not require publishing a new npm package.
 
 Edit the Markdown pages in `docs/`. `docs/README.md` is the guide's overview on
 GitHub and is included by `docs/index.md` for the website, so its content has
@@ -113,7 +125,7 @@ VitePress. The CLI package contains no website build tools.
 ## Add or correct model placement
 
 The family and model-line tables are in `src/placements/tiers.ts`. Placement
-also uses provider descriptions, benchmarks, scores, and overrides; see
+also uses provider descriptions, scores, and overrides; see
 [Tiers and routing](docs/tiers-and-routing.md). Check that discovery supplies
 matching models, add classification and routing tests where appropriate, and
 explain the evidence for the change in the PR. Review the score anchors when

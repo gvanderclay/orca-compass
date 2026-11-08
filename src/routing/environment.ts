@@ -63,7 +63,6 @@ export async function gather(config: Config, deps: GatherDeps = {}): Promise<Gat
     placementsBuiltAt: table.builtAt,
     catalogSource: table.sources.catalog.source,
     ...(table.sources.scores ? { scoreSource: table.sources.scores.source } : {}),
-    ...(table.sources.benchmarks ? { benchmarkSource: table.sources.benchmarks.source } : {}),
     ...(rejections.length > 0 ? { rejections } : {}),
   };
   return { env, ...placements };

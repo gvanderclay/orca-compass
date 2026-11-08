@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readTextFile } from '../src/placements/agents/deps.js';
 import { fakeDeps, fixture, NOW, orcaDownRunner, runner } from './helpers/fakes.js';
+import { MODEL_INDEX_URL, toRatings } from '../src/placements/sources/modelindex.js';
 import type { Runner } from '../src/system/run.js';
 import { main, type MainDeps } from '../src/cli.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
@@ -34,6 +35,17 @@ afterEach(() => {
   vi.unstubAllEnvs();
   if (savedHome === undefined) delete process.env.ORCACOMPASS_HOME;
   else process.env.ORCACOMPASS_HOME = savedHome;
+});
+
+describe('metadata output', () => {
+  it.each(['status', 'refresh', 'tiers', 'route'])('%s omits the removed benchmark source from text and JSON', async (command) => {
+    const args = command === 'route' ? [command, '--tier', 'daily'] : [command];
+    expect(await main(args, io, deps)).toBe(0);
+    expect(out()).not.toMatch(/benchmark/i);
+    stdout = [];
+    expect(await main([...args, '--json'], io, deps)).toBe(0);
+    expect(out()).not.toMatch(/benchmark/i);
+  });
 });
 
 describe('route', () => {
@@ -230,7 +242,6 @@ describe('status', () => {
     expect(out()).toMatch(/frontier/);
     expect(out()).toMatch(/catalog: snapshot/);
     expect(out()).toMatch(/scores: snapshot, \d+ models/);
-    expect(out()).toMatch(/benchmarks: unavailable \(set ARTIFICIAL_ANALYSIS_API_KEY to your Artificial Analysis key and run orcacompass refresh\)/);
     expect(out()).toMatch(/cursor kimi-k3: tier \w+ from capability score \(Model Index /);
   });
 });
@@ -238,61 +249,25 @@ describe('status', () => {
 describe('refresh', () => {
   it('reloads the catalog and the Model Index and reports source and model counts', async () => {
     const mini = fixture('modelsdev-mini.json');
-    const index = fixture('modelindex-mini.json');
-    const fetchImpl = async (url: string | URL | Request) => new Response(String(url).includes('themodelindex.org') ? index : mini);
+    const index = JSON.stringify({ fetchedAt: NOW, ratings: toRatings(JSON.parse(fixture('modelindex-mini.json'))) });
+    const fetchImpl = async (url: string | URL | Request) => new Response(String(url) === MODEL_INDEX_URL ? index : mini);
     const code = await main(['refresh'], io, { ...deps, fetchImpl: fetchImpl as typeof fetch });
     expect(code).toBe(0);
     expect(out()).toMatch(/^models\.dev: network, \d+ models/);
     expect(out()).toMatch(/\nmodel index: network, \d+ rated models/);
-    expect(out()).toMatch(/\nartificial analysis: unavailable \(set ARTIFICIAL_ANALYSIS_API_KEY to your Artificial Analysis key to fetch\)\nplacements: /);
     expect(err()).toBe('');
-  });
-
-  it('fetches Artificial Analysis benchmarks with the key from the environment', async () => {
-    const mini = fixture('modelsdev-mini.json');
-    const index = fixture('modelindex-mini.json');
-    const benchmarks = fixture('artificialanalysis-mini.json');
-    const keys: (string | null)[] = [];
-    const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
-      const u = String(url);
-      if (u.includes('artificialanalysis.ai')) {
-        keys.push(new Headers(init?.headers).get('x-api-key'));
-        return new Response(benchmarks);
-      }
-      return new Response(u.includes('themodelindex.org') ? index : mini);
-    };
-    const withKey: MainDeps = { ...deps, env: { ...deps.env, ARTIFICIAL_ANALYSIS_API_KEY: 'aa_test' }, fetchImpl: fetchImpl as typeof fetch };
-    expect(await main(['refresh'], io, withKey)).toBe(0);
-    expect(keys).toEqual(['aa_test']);
-    expect(out()).toMatch(/\nartificial analysis: network, \d+ benchmarked models/);
-    expect(err()).toBe('');
-    // The table built by the refresh now serves status and routes, with the benchmark placements explained.
-    stdout = [];
-    expect(await main(['status'], io, withKey)).toBe(0);
-    expect(out()).toMatch(/benchmarks: network, \d+ models \(Source: Artificial Analysis, artificialanalysis\.ai\)/);
-    expect(out()).toMatch(/claude claude-opus-5-5: tier frontier from benchmarks \(Artificial Analysis 58\/64 = 0\.98 of top/);
-    stdout = [];
-    expect(await main(['route', '--tier', 'frontier', '--agent', 'claude', '--json'], io, withKey)).toBe(0);
-    expect(JSON.parse(out())).toMatchObject({ benchmarkSource: 'network', placementsBuiltAt: NOW, route: { model: 'claude-opus-5-5' } });
-  });
-
-  it('reports a failed benchmark fetch and keeps going', async () => {
-    const withKey: MainDeps = { ...deps, env: { ...deps.env, ARTIFICIAL_ANALYSIS_API_KEY: 'aa_test' } };
-    expect(await main(['refresh'], io, withKey)).toBe(0);
-    expect(out()).toMatch(/\nartificial analysis: unavailable\nplacements: /);
-    expect(err()).toMatch(/could not reach artificialanalysis\.ai; no benchmarks available/);
   });
 
   it('reports when the network is unavailable', async () => {
     expect(await main(['refresh'], io, deps)).toBe(0);
     expect(out()).toMatch(/snapshot/);
     expect(err()).toMatch(/could not reach models\.dev/);
-    expect(err()).toMatch(/could not reach themodelindex\.org/);
+    expect(err()).toMatch(/could not load model scores from the OrcaCompass repository/);
   });
 
   it('reports both sources as JSON', async () => {
     expect(await main(['refresh', '--json'], io, deps)).toBe(0);
-    expect(JSON.parse(out())).toMatchObject({ source: 'snapshot', scores: { source: 'snapshot' }, benchmarks: null });
+    expect(JSON.parse(out())).toMatchObject({ source: 'snapshot', scores: { source: 'snapshot' } });
   });
 });
 
@@ -315,7 +290,7 @@ describe('placement table in the CLI', () => {
     stdout = [];
     expect(await main(['status', '--json'], io, { ...deps, now: NOW + 2 * HOUR })).toBe(0);
     const s = JSON.parse(out());
-    expect(s.placements).toMatchObject({ builtAt: NOW, age: 2 * HOUR, version: VERSION, rebuilt: null, saveError: null, benchmarkScale: null });
+    expect(s.placements).toMatchObject({ builtAt: NOW, age: 2 * HOUR, version: VERSION, rebuilt: null, saveError: null });
     expect(s.placements.scoreScale.cuts).toHaveLength(3);
     expect(s.scored.length).toBeGreaterThan(0);
     stdout = [];
@@ -327,7 +302,7 @@ describe('placement table in the CLI', () => {
     expect(await main(['tiers'], io, deps)).toBe(0);
     const text = out();
     expect(text).toContain(`placements: built now: no table yet (orcacompass ${VERSION})`);
-    expect(text).toMatch(/^catalog: snapshot, \d+ models; scores: snapshot, \d+ models; benchmarks: unavailable$/m);
+    expect(text).toMatch(/^catalog: snapshot, \d+ models; scores: snapshot, \d+ models$/m);
     expect(text).toMatch(/^frontier:$/m);
     expect(text).toMatch(/^  codex gpt-6-astra  the provider's lineup \("Frontier intelligence for the most demanding work\."\)/m);
     expect(text).toMatch(/^  claude claude-haiku-5-5  /m);
@@ -335,7 +310,7 @@ describe('placement table in the CLI', () => {
     stdout = [];
     expect(await main(['tiers', '--json'], io, { ...deps, now: NOW + HOUR })).toBe(0);
     const t = JSON.parse(out());
-    expect(t).toMatchObject({ schemaVersion: 1, version: VERSION, builtAt: NOW, age: HOUR });
+    expect(t).toMatchObject({ schemaVersion: 2, version: VERSION, builtAt: NOW, age: HOUR });
     expect(t.agents.map((a: { agent: string }) => a.agent)).toContain('codex');
   });
 

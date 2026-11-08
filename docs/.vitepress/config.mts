@@ -29,6 +29,7 @@ export default defineConfig({
         { text: 'Tiers and routing', link: '/tiers-and-routing' },
         { text: 'Reasoning effort', link: '/effort' },
         { text: 'Models and agents', link: '/models-and-agents' },
+        { text: 'Model data', link: '/model-data' },
         { text: 'Orca agents', link: '/orca-agents' },
         { text: 'Roadmap and limitations', link: '/roadmap' },
       ] },

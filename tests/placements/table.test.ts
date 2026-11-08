@@ -20,23 +20,20 @@ const fable: PlacedModel = {
   poolNames: ['session', 'weekly', 'fableWeekly'],
   lineup: 'For your toughest challenges',
   placements: [
-    { tier: 'advanced', source: 'benchmark', detail: 'benchmarks (invented 49/56 = 0.84 of top)' },
     { tier: 'frontier', source: 'lineup', detail: 'the provider\'s lineup ("For your toughest challenges")' },
   ],
-  tiers: ['advanced', 'frontier'],
+  tiers: ['frontier'],
 };
 
 function tableFixture(patch: Partial<PlacementTable> = {}): PlacementTable {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     version: '0.1.0',
     builtAt: NOW,
     builtWith: builtWith(DEFAULT_CONFIG),
     sources: {
       catalog: { source: 'snapshot', fetchedAt: NOW - HOUR, models: 120 },
       scores: { source: 'cache', fetchedAt: NOW - 2 * HOUR, models: 30 },
-      benchmarks: null,
-      benchmarkScale: null,
       scoreScale: { cuts: [0.34, 0.72, 0.9] },
     },
     agents: [
@@ -80,8 +77,9 @@ describe('parseTable', () => {
 
   it.each([
     ['not JSON', 'not json'],
+    ['legacy placement schema', JSON.stringify({ ...tableFixture(), schemaVersion: 1 })],
     ['a bare schema', '{"schemaVersion":1}'],
-    ['another schema version', JSON.stringify({ ...tableFixture(), schemaVersion: 2 })],
+    ['another schema version', JSON.stringify({ ...tableFixture(), schemaVersion: 99 })],
     ['a row without placements', JSON.stringify(tableFixture({ agents: [{ agent: 'claude', installed: true, models: [{ ...fable, placements: undefined } as unknown as PlacedModel] }] }))],
     ['a placement with an unknown tier', JSON.stringify(tableFixture({ agents: [{ agent: 'claude', installed: true, models: [{ ...fable, placements: [{ tier: 'ultra', source: 'lineup' }] } as unknown as PlacedModel] }] }))],
     ['a missing catalog source', JSON.stringify({ ...tableFixture(), sources: { ...tableFixture().sources, catalog: undefined } })],

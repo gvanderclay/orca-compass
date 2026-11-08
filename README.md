@@ -53,41 +53,48 @@ extra flags; otherwise those switches are reported as `unknown`.
 You also need the agent CLIs you want to route to installed and signed in,
 and Orca running for live usage data.
 
-### One-command install
+### Recommended install
+
+Run this inside the project where you want to use the Skill:
 
 ```sh
-npx orcacompass install --global
+npx orcacompass install
 ```
 
-One command installs the CLI and the matching Skill for your user. Add
-`--agent <name>` to choose which agents receive the Skill, or `--yes` to accept
-the installer's defaults. For a project-local Skill instead, run it without
-`--global` in that project.
+This installs the shared CLI and the matching Skill for the current project.
+It asks which agents should receive the Skill. Keep Orca's own orchestration
+skill installed alongside it.
+
+### Other options
+
+| Command | What it does |
+| --- | --- |
+| `npx orcacompass install --global` | Install the Skill for your user, across projects |
+| `npx orcacompass install --local` | Use the project default; keep Project if the installer asks for scope |
+| `npx orcacompass update` | Fetch the latest release, update the CLI and this project's Skill |
+| `npx orcacompass uninstall` | Remove this project's Skill; keep the shared CLI |
+
+Use `update --global` for your user-wide Skill. Use `uninstall --global`
+to remove the user-wide Skill and shared CLI. Your preferences and cache
+are preserved. Add `--agent <name>` to select agents, or `--yes` to accept
+the installer's defaults without a terminal.
 
 ### Alternative: install the CLI, then the Skill
 
-```sh
-npm install -g orcacompass
-orcacompass install --skill-only --global
-```
-
-This installs the same published CLI and matching Skill in two steps.
-
-### Alternative: build from source
-
-To use the current `main`, use Node.js 24 and npm for the development tools:
+From your project directory, run:
 
 ```sh
-git clone https://github.com/manomilano/orca-compass.git
-cd orca-compass
-npm ci
-npm install -g .
-orcacompass install --skill-only --global
+npm install -g orcacompass@latest
+orcacompass install --skill-only
 ```
 
-See [Getting started](docs/getting-started.md#install) for details. Keep Orca's
-own orchestration skill installed alongside it. To work on OrcaCompass itself,
-see [CONTRIBUTING.md](CONTRIBUTING.md).
+The CLI is shared across projects; the Skill is installed for this project.
+Keep Project if the installer asks for scope. Add `--global` to the second
+command for a user-wide Skill, or `--local` to spell out the project default.
+
+See [Getting started](docs/getting-started.md#install) for all options and
+building from source.
+To work on OrcaCompass itself, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick start
 
@@ -151,5 +158,6 @@ Start with [Getting started](docs/getting-started.md), or browse the
 | How the orchestrator routes, launches and verifies | [Skill workflow](docs/skill-workflow.md) |
 | Checking that a worker's agent accepted its model | [Verify and rejections](docs/verify-and-rejections.md) |
 | Supported agents and where their models come from | [Models and agents](docs/models-and-agents.md) |
+| Data sources, cache timing and maintaining model scores | [Model data](docs/model-data.md) |
 | What to do when an agent is not used or a route fails | [Troubleshooting](docs/troubleshooting.md) |
 | Planned work and known limitations | [Roadmap](docs/roadmap.md) |

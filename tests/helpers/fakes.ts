@@ -4,7 +4,7 @@ import type { Runner } from '../../src/system/run.js';
 import type { GatherDeps } from '../../src/routing/environment.js';
 
 // A fake machine for CLI, build and gather tests: Claude from a fixture catalog, Codex from its fixture
-// cache, Cursor from a fixture listing, Grok and Antigravity absent, Orca usage from a fixture, no network.
+// cache, Cursor from a fixture listing, Grok and Antigravity absent, Orca usage from a fixture.
 
 export const fixture = (name: string): string => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), 'utf8');
 export const orcaFixture = fixture('orca-account-list.json');

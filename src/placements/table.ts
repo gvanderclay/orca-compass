@@ -6,7 +6,7 @@ import { AGENT_IDS, CLASSIFICATION_SOURCES, TIERS, type AgentId, type BuiltWith,
 // The placement table: every model's tiers, computed once from every source and reused until stale.
 
 export const PLACEMENTS_FILE = 'placements.json';
-export const PLACEMENTS_SCHEMA = 1;
+export const PLACEMENTS_SCHEMA = 2;
 
 export const builtWith = (config: Config): BuiltWith =>
   structuredClone({ tierOverrides: config.tierOverrides, cursorAuto: config.cursorAuto, scoreWeight: config.scoreWeight });
@@ -47,7 +47,7 @@ export function parseTable(text: string | undefined): PlacementTable | undefined
   const b = raw.builtWith;
   if (!isObj(b) || !isObj(b.tierOverrides) || typeof b.cursorAuto !== 'boolean' || typeof b.scoreWeight !== 'number') return undefined;
   const s = raw.sources;
-  if (!isObj(s) || !validSource(s.catalog) || (s.scores !== null && !validSource(s.scores)) || (s.benchmarks !== null && !validSource(s.benchmarks))) return undefined;
+  if (!isObj(s) || !validSource(s.catalog) || (s.scores !== null && !validSource(s.scores))) return undefined;
   if (!Array.isArray(raw.agents) || !raw.agents.every(validAgent)) return undefined;
   return raw as unknown as PlacementTable;
 }

@@ -52,7 +52,7 @@ try {
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /usage: orcacompass <command>/);
   assert.match(help.stdout, /route --tier <light\|daily\|advanced\|frontier>/);
-  assert.match(help.stdout, /install \[-g\|--global\]/);
+  assert.match(help.stdout, /install \[-g\|--global/);
   assert.equal(help.stderr, '');
   const invalid = run([entry, 'not-a-command']);
   assert.equal(invalid.status, 1);
@@ -61,6 +61,9 @@ try {
   for (const name of ['models-snapshot.json', 'modelindex-snapshot.json']) {
     const snapshot = JSON.parse(readFileSync(join(packageRoot, 'data', name), 'utf8'));
     assert.ok(Object.keys(snapshot).length > 0, name + ' must contain bundled metadata');
+  }
+  for (const removed of ['data/benchmarks.json', 'dist/placements/benchmark.js', 'dist/placements/sources/benchmarks.js', 'dist/placements/sources/artificialanalysis.js']) {
+    assert.ok(!existsSync(join(packageRoot, removed)), `Removed data integration must not ship: ${removed}`);
   }
   assert.match(readFileSync(join(packageRoot, 'skills/orcacompass/SKILL.md'), 'utf8'), /orcacompass/);
   assert.ok(existsSync(join(packageRoot, 'NOTICE')), 'Metadata attribution must ship');

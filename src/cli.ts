@@ -14,12 +14,11 @@ import {
   type PlacementTable, type Preference, type RouteRequest, type Tier,
 } from './types.js';
 import { gather, gatherEnvironment, loadPlacements, type Gathered, type GatherDeps } from './routing/environment.js';
-import { AA_KEY_ENV } from './placements/sources/artificialanalysis.js';
 import type { Staleness } from './placements/table.js';
 import { runCommand } from './system/run.js';
 import { configPath } from './paths.js';
 import { readRejections, recordRejection, writeRejections } from './routing/rejections.js';
-import { install, type InstallDeps } from './install.js';
+import { install, update, uninstall, type InstallDeps } from './install.js';
 import { setupInfo, setupWizard, type Terminal } from './setup.js';
 import { verifyWorker, type Verdict } from './verify.js';
 
@@ -41,8 +40,10 @@ export interface IO {
 const USAGE = `usage: orcacompass <command> [options]
 
 commands:
-  install [-g|--global] [-y|--yes] [-a|--agent <name>]... [--skill-only]
-                                       install the Skill, then the CLI if it is missing
+  install [-g|--global | -l|--local] [-y|--yes] [-a|--agent <name>]... [--skill-only]
+                                       install or update the CLI, then its matching Skill
+  update [same options as install]     get the latest release and matching Skill
+  uninstall [same options as install]  remove the selected Skill; --global also removes the shared CLI
   route --tier <light|daily|advanced|frontier> [--no-downgrade] [--agent <id>]...
         [--exclude-agent <id>]... [--demand <low|moderate|high|exceptional>]
         [--effort <effort>] [--tier-reason <reason>] [--json]
@@ -87,7 +88,7 @@ export async function main(argv: string[], io: IO, deps: MainDeps = {}): Promise
     if (command === 'unban') return await unbanCommand(rest, io, deps);
     if (command === 'refresh') return await refreshCommand(rest, io, deps);
     if (command === 'setup') return await setupCommand(rest, io, deps);
-    if (command === 'install') return await installCommand(rest, io, deps);
+    if (command === 'install' || command === 'update' || command === 'uninstall') return await installCommand(command, rest, io, deps);
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command');
   } catch (e) {
     if (e instanceof UsageError) {
@@ -167,7 +168,7 @@ async function routeCommand(args: string[], io: IO, deps: MainDeps): Promise<num
   d.warnings.push(...unknownAgents);
   if (v.json) {
     const sources = {
-      catalogSource: env.catalogSource, scoreSource: env.scoreSource ?? 'unavailable', benchmarkSource: env.benchmarkSource ?? 'unavailable',
+      catalogSource: env.catalogSource, scoreSource: env.scoreSource ?? 'unavailable',
       placementsBuiltAt: env.placementsBuiltAt,
     };
     io.out(JSON.stringify({ ...d, launch: formatLaunch(d) ?? null, ...sources }, null, 2));
@@ -376,7 +377,6 @@ function buildStatus(gathered: Gathered, config: Config) {
     now: env.now,
     catalog: table.sources.catalog,
     scores: table.sources.scores,
-    benchmarks: table.sources.benchmarks,
     placements: placementsView(gathered, env.now),
     orcaAgents: env.orcaAgents ?? null,
     agents,
@@ -397,9 +397,6 @@ function statusText(s: Status): string[] {
     s.scores
       ? `scores: ${s.scores.source}, ${s.scores.models} models (The Model Index, CC BY 4.0), fetched ${duration(now - s.scores.fetchedAt)} ago`
       : 'scores: unavailable (only the family table assigns tiers)',
-    s.benchmarks
-      ? `benchmarks: ${s.benchmarks.source}, ${s.benchmarks.models} models (Source: Artificial Analysis, artificialanalysis.ai), fetched ${duration(now - s.benchmarks.fetchedAt)} ago`
-      : `benchmarks: unavailable (set ${AA_KEY_ENV} to your Artificial Analysis key and run orcacompass refresh)`,
     ...placementsLines(s.placements, now),
     orcaAgentsLine(s.orcaAgents ?? undefined),
     'agents:',
@@ -440,7 +437,7 @@ function statusText(s: Status): string[] {
   if (s.banned.length > 0) lines.push(`banned by you: ${s.banned.map((b) => `${b.agent} ${b.model}`).join(', ')}`);
   for (const r of s.rejected) lines.push(`skipped ${r.agent} ${r.model}, ${rejectedText(r, now)} (orcacompass rejected --clear forgets it)`);
   if (s.scored.length > 0) {
-    lines.push(`placements explained (lineup, benchmarks, capability score): ${s.scored.length}`);
+    lines.push(`placements explained (lineup, capability score): ${s.scored.length}`);
     // OpenCode can place a hundred OpenRouter models by score: past 30, an agent shows 15.
     const total = new Map<string, number>();
     for (const x of s.scored) total.set(x.agent, (total.get(x.agent) ?? 0) + 1);
@@ -702,30 +699,23 @@ function showBans(banModels: string[], env: Environment, json: boolean, wrote: b
 async function refreshCommand(args: string[], io: IO, deps: MainDeps): Promise<number> {
   const v = parse(args, { json: { type: 'boolean' } });
   const config = loadConfig();
-  const key = (deps.env ?? process.env)[AA_KEY_ENV];
   const { table, saveError } = await loadPlacements(config, { ...deps, refresh: true });
-  const { catalog: c, scores: r, benchmarks: b } = table.sources;
+  const { catalog: c, scores: r } = table.sources;
   const at = (t: number) => new Date(t).toISOString();
   if (c.source !== 'network') io.err(`could not reach models.dev; still using the ${c.source} from ${at(c.fetchedAt)}`);
   if (r?.source !== 'network') {
-    io.err(`could not reach themodelindex.org; ${r ? `still using the ${r.source} from ${at(r.fetchedAt)}` : 'no scores available'}`);
+    io.err(`could not load model scores from the OrcaCompass repository; ${r ? `still using the ${r.source} from ${at(r.fetchedAt)}` : 'no scores available'}`);
   }
-  // No key is the normal opt-out, reported in the output rather than as an error.
-  if (key && b?.source !== 'network') io.err(`could not reach artificialanalysis.ai; ${b ? `still using the cache from ${at(b.fetchedAt)}` : 'no benchmarks available'}`);
   if (saveError !== undefined) io.err(`placements: could not be saved: ${saveError}`);
   const models = table.agents.reduce((n, a) => n + a.models.length, 0);
   const placements = { builtAt: table.builtAt, models, agents: table.agents.length };
   if (v.json) {
-    io.out(JSON.stringify({ source: c.source, fetchedAt: c.fetchedAt, models: c.models, scores: r, benchmarks: b, placements }, null, 2));
+    io.out(JSON.stringify({ source: c.source, fetchedAt: c.fetchedAt, models: c.models, scores: r, placements }, null, 2));
   } else {
     const scoreLine = r ? `${r.source}, ${r.models} rated models (fetched ${at(r.fetchedAt)})` : 'unavailable';
-    const benchLine = b
-      ? `${b.source}, ${b.models} benchmarked models (fetched ${at(b.fetchedAt)})`
-      : `unavailable${key ? '' : ` (set ${AA_KEY_ENV} to your Artificial Analysis key to fetch)`}`;
     io.out([
       `models.dev: ${c.source}, ${c.models} models (fetched ${at(c.fetchedAt)})`,
       `model index: ${scoreLine}`,
-      `artificial analysis: ${benchLine}`,
       `placements: ${models} models across ${table.agents.length} agents (built now)`,
     ].join('\n'));
   }
@@ -753,7 +743,6 @@ function placementsView(g: Pick<Gathered, 'table' | 'rebuilt' | 'saveError'>, no
     version: table.version,
     rebuilt: g.rebuilt ?? null,
     saveError: g.saveError ?? null,
-    benchmarkScale: table.sources.benchmarkScale,
     scoreScale: table.sources.scoreScale,
   };
 }
@@ -766,15 +755,11 @@ function placementsLines(p: ReturnType<typeof placementsView>, now: number): str
 }
 
 function tiersText(table: PlacementTable, view: ReturnType<typeof placementsView>, now: number): string[] {
-  const { catalog, scores, benchmarks, benchmarkScale } = table.sources;
+  const { catalog, scores } = table.sources;
   const lines = [
     ...placementsLines(view, now),
-    `catalog: ${catalog.source}, ${catalog.models} models; scores: ${scores ? `${scores.source}, ${scores.models} models` : 'unavailable'}; benchmarks: ${benchmarks ? `${benchmarks.source}, ${benchmarks.models} models` : 'unavailable'}`,
+    `catalog: ${catalog.source}, ${catalog.models} models; scores: ${scores ? `${scores.source}, ${scores.models} models` : 'unavailable'}`,
   ];
-  if (benchmarkScale) {
-    const median = benchmarkScale.medianValue === null ? 'no prices' : `median ${benchmarkScale.medianValue.toFixed(1)} points per dollar`;
-    lines.push(`benchmark scale: top ${benchmarkScale.top.toFixed(1)}, ${median}`);
-  }
   const rows = table.agents.flatMap((a) => a.models.flatMap((m) => m.placements.map((c) => ({ agent: a.agent, model: m.modelId, tier: c.tier, detail: c.detail ?? c.source }))));
   rows.sort((x, y) => (x.agent < y.agent ? -1 : x.agent > y.agent ? 1 : x.model < y.model ? -1 : x.model > y.model ? 1 : 0));
   for (const tier of TIERS) {
@@ -805,19 +790,21 @@ async function tiersCommand(args: string[], io: IO, deps: MainDeps): Promise<num
 
 // --- install --------------------------------------------------------------------------------
 
-async function installCommand(args: string[], io: IO, deps: MainDeps): Promise<number> {
+async function installCommand(command: 'install' | 'update' | 'uninstall', args: string[], io: IO, deps: MainDeps): Promise<number> {
   const v = parse(args, {
     global: { type: 'boolean', short: 'g' },
+    local: { type: 'boolean', short: 'l' },
     yes: { type: 'boolean', short: 'y' },
     agent: { type: 'string', short: 'a', multiple: true },
     'skill-only': { type: 'boolean' },
   });
+  if (v.global && v.local) throw new UsageError('choose either --global or --local');
   // The installer asks which agents and where; without a terminal nobody can answer.
   if (!deps.terminal && !v.yes) {
-    io.err('orcacompass install asks questions in a terminal, and this is not one. Run it in a terminal, or add --yes (with --global and --agent <name> to choose).');
+    io.err(`orcacompass ${command} asks questions in a terminal, and this is not one. Run it in a terminal, or add --yes (with --global or --local and --agent <name> to choose).`);
     return 1;
   }
-  return install(
+  return ({ install, update, uninstall })[command](
     { global: v.global, yes: v.yes, agents: v.agent, skillOnly: v['skill-only'] },
     { log: io.out, ...deps.install },
   );

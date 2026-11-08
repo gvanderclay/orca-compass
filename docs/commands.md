@@ -23,7 +23,7 @@ orcacompass setup
 orcacompass setup --json
 orcacompass setup --complete [--json]
 orcacompass setup --skip [--json]
-orcacompass install [-g|--global] [-y|--yes] [-a|--agent <name>]... [--skill-only]
+orcacompass install [-g|--global | -l|--local] [-y|--yes] [-a|--agent <name>]... [--skill-only]
 orcacompass --help
 ```
 
@@ -37,12 +37,14 @@ orcacompass --help
 | `agents` | Which agents are used, and why not; `disable`, `enable`, `only`, `reset` change it | listing: same as `route`; mutations write `allowAgents`, `denyAgents` |
 | `prefer` | Favorite route per tier; `clear` removes it; `--risk-limit` sets when a known within-limit alternative replaces it | `pins`, `preferRiskLimit` |
 | `ban` / `unban` | Models or families never routed | `banModels` |
-| `refresh` | Downloads fresh model metadata and rebuilds the placement table | cache (`modelsdev.json`, `modelindex.json`, `artificialanalysis.json`, `placements.json`) |
+| `refresh` | Downloads fresh model metadata and rebuilds the placement table | cache (`modelsdev.json`, `modelindex.json`, `placements.json`) |
 | `setup` | Interactive first-time setup in a terminal | the keys above |
 | `setup --json` | What the setup questions need, for an orchestrator asking them in chat | same as `route` |
 | `setup --complete` | Marks chat setup complete, including unchanged defaults | an empty config if absent; same as `route` |
 | `setup --skip` | Declines setup: keeps the defaults and stops the chat offer | an empty config file, if none exists |
-| `install` | Installs the packaged Skill, then the CLI if it is not on PATH | agents' skills folders; a global npm package |
+| `install` | Installs or updates the CLI, then its matching packaged Skill | agents' skills folders; a global npm package |
+| `update` | Fetches the latest release and runs its installer with your options | same as `install` |
+| `uninstall` | Removes the selected Skill; full `--global` also removes the CLI | selected Skill files; optionally the global npm package |
 
 Agent ids everywhere: `claude`, `codex`, `cursor`, `grok`, `antigravity`,
 `opencode`, `muse`, in any letter case. Tier and demand names are
@@ -89,7 +91,7 @@ daily → claude · claude-sonnet-5-5 · medium (high confidence)
 orca orchestration worker-start --spec "<task>" --agent claude --model claude-sonnet-5-5 --effort medium
 ```
 
-JSON is the `Decision` type (`src/types.ts`) plus `launch`, the three
+JSON is the `Decision` type (`src/types.ts`) plus `launch`, the two
 source fields and `placementsBuiltAt`:
 
 | Field | Meaning |
@@ -111,8 +113,7 @@ source fields and `placementsBuiltAt`:
 | `waitUntil` | Epoch ms when a blocked requested-tier candidate resets; with `wait`, sometimes with `none` |
 | `catalogSource` | Models.dev: `network`, `cache`, or `snapshot` |
 | `scoreSource` | The Model Index: the same values, or `unavailable` |
-| `benchmarkSource` | Artificial Analysis: `network`, `cache`, or `unavailable` (no key and no cache) |
-| `placementsBuiltAt` | Epoch ms when the placement table this route read was built (see [`tiers`](#tiers)); the three source fields say what that build used |
+| `placementsBuiltAt` | Epoch ms when the placement table this route read was built (see [`tiers`](#tiers)); the two source fields say what that build used |
 
 The chosen route's own headroom appears in its reason line, not as a separate
 field.
@@ -158,15 +159,15 @@ number forgotten by `--clear` (0 otherwise).
 
 Shows: installed agents with their notes, usage pools with headroom, the pick
 and up to three alternatives per tier (each tier on its own, without
-fallbacks), models placed by the provider's lineup, benchmarks or the
+fallbacks), models placed by the provider's lineup or the
 capability score with the words and numbers behind them, unclassified models,
 the age and source of the metadata, and when the placement table was built
 (`placements: built 2h ago (orcacompass 0.1.0)`, or `built now: no table
 yet` when this call rebuilt it, plus `placements: could not be saved: …`
 when the cache folder is not writable). `--json` has `now`, `catalog`,
-`scores` (or `null`), `benchmarks` (or `null`), `placements` (`builtAt`,
+`scores` (or `null`), `placements` (`builtAt`,
 `age` in ms, `version`, `rebuilt` (why this call rebuilt it, or `null`),
-`saveError`, `benchmarkScale`, `scoreScale`), `orcaAgents`, `agents`,
+`saveError`, `scoreScale`), `orcaAgents`, `agents`,
 `banned` (`{ agent, model }` pairs), `rejected`, `tiers`, `scored`,
 `unclassified`; metadata summaries carry `source`, `fetchedAt`, `models`. Each `agents` row has
 `agent`, `installed`, `enabledInOrca`, `models` (count), `usage` (`null` or
@@ -176,8 +177,7 @@ when the cache folder is not writable). `--json` has `now`, `catalog`,
 ## `tiers`
 
 Prints the placement table: when it was built and by which version, what
-each metadata source contributed, the benchmark scale (the top capability and
-the median points per dollar), then every model under each tier it may
+each metadata source contributed, then every model under each tier it may
 serve with the words and numbers behind that placement, and the unclassified
 models. A model that spans two tiers appears under both. The table is
 rebuilt first when it is stale (see [Tiers and
@@ -260,15 +260,15 @@ entry to the `{ agent, model }` pairs it covers now.
 
 ## `refresh`
 
-Downloads fresh Models.dev and Model Index data into the cache, and the
-Artificial Analysis model list when `ARTIFICIAL_ANALYSIS_API_KEY` is set (4 of
-the free tier's 100 daily requests), then rebuilds the placement table: every
+Downloads fresh Models.dev metadata and Model Index scores from the repository
+into the cache, without an API key, then rebuilds the placement table: every
 agent's model list is read again and every model placed again. It does not
 read Orca usage. The last output line is `placements: N models across M
 agents (built now)`. `--json` returns `{ source, fetchedAt, models, scores,
-benchmarks, placements: { builtAt, models, agents } }`. On network failure it
+placements: { builtAt, models, agents } }`. On network failure it
 reports the fallback source on stderr and still exits 0 when fallback metadata
-exists; a missing key is reported in the output, not as an error.
+exists. If scores are unavailable, provider descriptions, family rules and
+overrides remain usable.
 
 ## `setup`
 
@@ -296,12 +296,41 @@ answers kept their defaults. With `--json` it returns the same document as
 
 ## `install`
 
-Installs the Skill with `npx -y skills@1 add <package folder>`, the
+Run `npx orcacompass install` from your project. The default is a project Skill;
+`--local` selects the same default flow, and `--global` selects a user-wide Skill.
+Without `--global`, the interactive Skill installer may ask Project or Global;
+keep its Project default for a local installation. `--yes` accepts that default.
+The installer reads the globally installed version with `npm ls --global`.
+Unless `--skill-only` is given, it installs a missing or older CLI with
+`npm install -g orcacompass@<this version>` and keeps an already current CLI.
+An older installer refuses to downgrade a newer CLI or replace its Skill.
+Copies in npx's cache or project-local installations do not count as global
+installations.
+
+After the CLI step succeeds, it installs the Skill with
+`npx -y skills@1 add <package folder>`, the
 [`skills`](https://github.com/vercel-labs/skills) installer pointed at the
 Skill inside this package, so the Skill matches this CLI version. `--global`,
-`--yes` and each `--agent <name>` pass through to it. Then, unless
-`--skill-only` is given or `orcacompass` is already on PATH (copies in npx's
-own cache do not count), it runs `npm install -g orcacompass@<this version>`.
+`--yes` and each `--agent <name>` pass through to it. `--skill-only` skips
+the CLI check and installation entirely.
 Both steps run attached to the terminal, so their questions and output reach
 you. Without a terminal it exits 1 unless `--yes` is given. Exits 1 when either
 step fails, with the step that failed and how to finish by hand.
+
+
+## `update`
+
+Run `npx orcacompass update` to check npm for the latest release, then run
+that exact release's installer. It preserves the scope, agent selections,
+`--yes` and `--skill-only` flags. It refuses to downgrade a newer CLI.
+Add `--global` for the user-wide Skill. If your installed release does not
+recognize `update`, run `npx orcacompass@latest update` once.
+
+## `uninstall`
+
+Run `npx orcacompass uninstall` from a project to remove its Skill through
+`skills@1`. The shared CLI remains installed. `--global` removes the
+user-wide Skill first and then runs `npm uninstall -g orcacompass`.
+`--skill-only` or an explicit `--agent` keeps the shared CLI even with
+`--global`. A failed Skill removal stops before CLI removal. Preferences
+and caches are preserved. `--yes` is required without an interactive terminal.
