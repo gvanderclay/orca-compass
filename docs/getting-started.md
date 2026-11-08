@@ -5,9 +5,12 @@ This page covers installing OrcaCompass, what happens the first time it runs
 
 ## Requirements
 
-- Node.js 20 or later. Reading Orca's agent switches needs Node 22.5 or later
-  (`node:sqlite`); older Node reports them as `unknown`. Building from source
-  also needs Node.js 24 and npm.
+- **Node.js 24 is recommended** for both using OrcaCompass and building it
+  from source. The published CLI supports Node.js 20+, but reading Orca's
+  agent switches needs Node.js 22.13+ without extra flags (`node:sqlite`).
+  When SQLite is unavailable, those switches are reported as `unknown`.
+  Development tools have newer Node requirements than the published CLI;
+  see [Development setup](https://github.com/manomilano/orca-compass/blob/main/CONTRIBUTING.md#development-setup).
 - [Orca IDE](https://github.com/stablyai/orca) running, for live usage data
   (`orca account list --json`). Without Orca, routing still works with usage
   unknown and low confidence.
@@ -16,6 +19,8 @@ This page covers installing OrcaCompass, what happens the first time it runs
   that is not installed is simply skipped.
 
 ## Install
+
+### One-command install
 
 ```sh
 npx orcacompass install --global
@@ -46,6 +51,16 @@ npx orcacompass install --global --agent claude-code --agent codex
 
 Keep Orca's own orchestration skill installed alongside it: OrcaCompass only
 recommends a route, Orca's skill explains how to launch and supervise workers.
+
+### Alternative: install the CLI, then the Skill
+
+```sh
+npm install -g orcacompass
+orcacompass install --skill-only --global
+```
+
+This installs the same published version in two steps: the CLI first, then
+its matching Skill. The Skill options above also work with the second command.
 
 ### From source
 

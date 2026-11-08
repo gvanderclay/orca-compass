@@ -31,8 +31,9 @@ for current behavior and supported agents.
   [launch verification](verify-and-rejections.md) to detect known refusal
   wording and handle failures.
 - **Orca integration has limits.** Agent switches come from an internal store;
-  unexpected formats leave them unknown, and Node versions before 22.5 cannot
-  read the database. OrcaCompass calls the literal `orca` command.
+  unexpected formats leave them unknown. Reading the database needs
+  `node:sqlite`; use Node.js 24 or Node.js 22.13+ without extra flags.
+  OrcaCompass calls the literal `orca` command.
 - **Folder trust is not checked.** Grok can stop at a trust prompt; OpenCode
   has no auto-trust in Orca, and whether it prompts is unchecked.
 - **Privacy filtering is partial.** `excludeNoZdr` relies on Cursor's `NO ZDR`

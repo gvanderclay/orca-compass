@@ -47,9 +47,13 @@ as an Agent Skill backed by a small TypeScript CLI.
 
 ## Install
 
-You need Node.js 20 or later (22.5 or later to read Orca's agent switches),
-the agent CLIs you want to route to installed and signed in, and Orca running
-for live usage data. Then:
+Use **Node.js 24** for the simplest setup. The published CLI also runs on
+Node.js 20+, but reading Orca's agent switches requires Node.js 22.13+ without
+extra flags; otherwise those switches are reported as `unknown`.
+You also need the agent CLIs you want to route to installed and signed in,
+and Orca running for live usage data.
+
+### One-command install
 
 ```sh
 npx orcacompass install --global
@@ -60,7 +64,18 @@ One command installs the CLI and the matching Skill for your user. Add
 the installer's defaults. For a project-local Skill instead, run it without
 `--global` in that project.
 
-Alternatively, build the current `main` from source with Node.js 24 and npm:
+### Alternative: install the CLI, then the Skill
+
+```sh
+npm install -g orcacompass
+orcacompass install --skill-only --global
+```
+
+This installs the same published CLI and matching Skill in two steps.
+
+### Alternative: build from source
+
+To use the current `main`, use Node.js 24 and npm for the development tools:
 
 ```sh
 git clone https://github.com/manomilano/orca-compass.git
@@ -138,34 +153,3 @@ Start with [Getting started](docs/getting-started.md), or browse the
 | Supported agents and where their models come from | [Models and agents](docs/models-and-agents.md) |
 | What to do when an agent is not used or a route fails | [Troubleshooting](docs/troubleshooting.md) |
 | Planned work and known limitations | [Roadmap](docs/roadmap.md) |
-
-## Contributing
-
-Contributions are welcome, from a new model family to a whole agent adapter.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests and the PR checklist.
-Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
-
-## Security
-
-Report vulnerabilities privately through GitHub's
-[private vulnerability reporting](https://github.com/manomilano/orca-compass/security/advisories/new),
-not in a public issue. [SECURITY.md](SECURITY.md) says what to include and
-what is in scope.
-
-## License
-
-OrcaCompass is licensed under the [Apache License 2.0](LICENSE).
-Copyright 2026 Vittorio Emanuel Deian.
-
-The bundled `data/models-snapshot.json` contains trimmed metadata from
-[Models.dev](https://models.dev). Capability scores and prices in
-`data/modelindex-snapshot.json` are trimmed from
-[The Model Index](https://themodelindex.org), licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-Benchmark placement reads [Artificial Analysis](https://artificialanalysis.ai)
-data with your own Data API key (`ARTIFICIAL_ANALYSIS_API_KEY`);
-nothing from it is bundled. See [NOTICE](NOTICE) for data attributions.
-
-Every model's tiers are computed once from all of these sources into a
-placement table in your cache, rebuilt every 5 hours or by `orcacompass
-refresh`. A route reads that table and your live Orca usage, nothing else.

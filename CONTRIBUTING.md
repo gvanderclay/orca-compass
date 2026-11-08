@@ -5,8 +5,6 @@ coordinator experience are welcome. For bugs, include a minimal reproduction;
 for larger changes, open an issue describing the problem and proposed behavior.
 Report security issues privately through [SECURITY.md](SECURITY.md).
 
-Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
-
 ## Ways to contribute
 
 - **Report a bug** with the command you ran, what you expected, and the relevant
@@ -39,8 +37,9 @@ bundled data attributions in [NOTICE](NOTICE).
 
 ## Development setup
 
-Use Node.js 24 and npm for development. The CLI declares Node.js 20+ support,
-but Vitest 5 requires Node.js `^22.12.0 || ^24.0.0 || >=26.0.0`.
+Use Node.js 24 and npm for development, matching CI. Node.js 20 is the minimum
+for running the published CLI, not for running the development tools: Vitest 5
+requires Node.js `^22.12.0 || ^24.0.0 || >=26.0.0`.
 
 ```sh
 git clone https://github.com/manomilano/orca-compass.git
