@@ -1,8 +1,10 @@
 # Orca agents and OrcaCompass support
 
-Every agent Orca can launch as a worker, and what OrcaCompass does with each one.
+Orca's observed agent support, and what OrcaCompass does with each agent.
 
-**Correct as of 2026-11-03** (Orca IDE 1.4.246, OrcaCompass 0.1.0).
+The Orca launch and trust behavior below was inspected on 2026-11-03 with
+Orca IDE 1.4.246. It is a compatibility reference, not a guarantee for newer
+Orca versions. The OrcaCompass adapter descriptions reflect this checkout.
 
 Every agent id below can be named in
 `orca orchestration worker-start --agent <id>`. The list comes from Orca's
@@ -82,7 +84,8 @@ Source: `src/routing/environment.ts` and `src/placements/agents/*.ts`, `src/rout
 1. **Find the CLI** with `find(<binary>, extra dirs)`. Not found → `installed: false`, never routed.
 2. **Read the model list** when the placement table is built (every
    `placementsTtlHours`, on `refresh`, or when the table is stale), never on a
-   plain route. Commands run through `listModels` (`src/placements/agents/list-cache.ts`): a good
+   route that reuses a fresh table. Live model-list commands run through
+   `listModels` (`src/placements/agents/list-cache.ts`): a good
    listing is saved to the OrcaCompass cache; if the command later fails, the
    saved copy is used with its age ("using the list from 3h ago"). A sign-in
    prompt in the output marks the agent `signedOut` and never falls back.
@@ -103,7 +106,8 @@ Source: `src/routing/environment.ts` and `src/placements/agents/*.ts`, `src/rout
      to the nearest one the model offers (`applied: flag`, or
      `provider-default` when none).
    - `variant` models (effort inside the id): `--agent <id> --model <id-for-effort>`,
-     no `--effort` (`applied: model-id`).
+     no `--effort` (`applied: model-id`). Explicit `--effort` requests are never
+     snapped: models that cannot apply that exact level are excluded.
 8. **After launch**, `orcacompass verify --dispatch <id>` reads the worker's
    output and matches the agent's own refusal text (below).
 
@@ -113,9 +117,9 @@ Source: `src/routing/environment.ts` and `src/placements/agents/*.ts`, `src/rout
 |---|---|---|---|---|---|---|---|
 | **Adapter** | `claude.ts` | `codex.ts` | `cursor.ts` | `antigravity.ts` | `grok.ts` | `opencode.ts` | `muse.ts` |
 | **Finds** | `claude` on PATH | `codex` on PATH | `cursor-agent` on PATH or `%LOCALAPPDATA%\cursor-agent` | `agy` on PATH, `%LOCALAPPDATA%\agy\bin` or `~/.local/bin` | `grok` on PATH, `$GROK_HOME/bin` or `~/.grok/bin` | `opencode` on PATH or `~/.opencode/bin` | `muse` on PATH |
-| **Model list** | None from the agent: every Anthropic `claude-*` model in Models.dev (Claude Code accepts any Anthropic id) | `$CODEX_HOME/models_cache.json` (Codex's own, `visibility: list`); else Orca's `agent-model-catalog.json` (last Codex probe) | `cursor-agent models`, live | `agy models`, live (`id<TAB>label` rows) | `~/.grok/models_cache.json` (Grok's own, hidden models dropped); else `grok models`, live | `opencode models`, live (`provider/model` rows; OpenRouter `~` aliases skipped) | None: detected only, never routed |
+| **Model list** | Claude Code's cached account catalog, then Orca's `agent-model-catalog.json`, then Anthropic families in Models.dev | `$CODEX_HOME/models_cache.json` (`visibility: list`), then Orca's `agent-model-catalog.json`, then Models.dev's Codex ladder families without `-latest` aliases | `cursor-agent models`, live | `agy models`, live (`id<TAB>label` rows) | `~/.grok/models_cache.json` (Grok's own, hidden models dropped); else `grok models`, live | `opencode models`, live (`provider/model` rows; OpenRouter `~` aliases skipped) | None: detected only, never routed |
 | **Grouping** | — | — | Variants grouped by base id: effort, `-thinking` and `-fast` are stripped; `cursor-` prefix and old `claude-4.6-sonnet` ids normalized | `-low/-medium/-high` ids grouped; `-thinking` dropped to match Models.dev | — | A model listed by several providers kept once, from the cheapest (local, then free, then paid) | — |
-| **Effort** | From Models.dev, else assumed `low` to `max` | Codex cache `supported_reasoning_levels` + default; from Orca's catalog when that is the source | Inside the model id (`…-high`); the plain id stands for `medium`; fast-only levels dropped | Gemini: inside the id. Others: Orca's `low`/`medium`/`high` via `--effort` | Grok cache levels + default (none for multi-agent models); from `grok models`: `low` to `xhigh`, capped as in Orca's seed (4.5 up to `high`) | None (Orca passes no effort to OpenCode) | — |
+| **Effort** | From the selected account or Orca catalog; on Models.dev fallback, its effort options or assumed `low` to `max` | Codex cache levels + default, then Orca's catalog; on Models.dev fallback, its effort options or assumed `low` to `max` | Inside the model id (`…-high`); the plain id stands for `medium`; fast-only levels dropped | Gemini: inside the id. Others: Orca's `low`/`medium`/`high` via `--effort` | Grok cache levels + default (none for multi-agent models); from `grok models`: `low` to `xhigh`, capped as in Orca's seed (4.5 up to `high`) | None (Orca passes no effort to OpenCode) | — |
 | **`launchArgs`** | `--model --effort` | `--model --effort` | `--model <variant id>` | `--model <variant id>` (Gemini) or `--model --effort` | `--model --effort` | `--model <provider/model>` | — |
 | **Usage pools** | `session`, `weekly`, plus `fableWeekly` for Fable | `session`, `weekly` | `monthly` + `Cursor Models` or `Other Models` bucket (which models draw on which is inferred) | Per quota group (`Gemini Models`, `Claude and GPT models`): 5-hour and long; else Orca's `session`/`weekly` | `weekly`, `monthly` | None: pay per use or local; the route says how it is paid | — |
 | **Refusal `verify` matches** | `There's an issue with the selected model` (idles) | `model is not supported when using Codex…` (idles) | `Cannot use this model` (exits) | `invalid model selection` / `not recognized as a known model` (exits) | `Couldn't set model … unknown model id` (exits) | `Model unavailable` | — |
@@ -127,7 +131,8 @@ Source: `src/routing/environment.ts` and `src/placements/agents/*.ts`, `src/rout
   `--agent grok --model <id> --effort <e>` (stablyai/orca#36480) and still
   refuses effort levels above a model's ceiling (Grok 4.5 above `high`), which
   matches the ceilings in `grok.ts`. End-to-end validation remains incomplete.
-- **Effort lists for Claude and Codex** come from Models.dev and Codex's cache.
+- **Effort lists for Claude and Codex** come from their local catalogs, Orca's
+  catalog, or the Models.dev fallback.
   Orca checks effort against its own catalog for models it knows (for example
   `gpt-5.5` up to `xhigh`) and refuses others. Whether the two lists always
   agree has not been checked.

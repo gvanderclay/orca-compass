@@ -1,7 +1,7 @@
 # OrcaCompass user guide
 
-**Correct as of 2026-11-01** (OrcaCompass 0.1.0, Orca IDE 1.4.245). The source of truth is the code; when a page and the CLI
-disagree, run the command and trust its output.
+This guide describes the code in this checkout. Installed releases may differ;
+use `orcacompass --help` to see the commands your version supports.
 
 OrcaCompass helps an Orca orchestrator choose the **agent**, **model** and
 **reasoning effort** for each job it hands to a worker. It ships as an Agent
@@ -22,6 +22,7 @@ Skill (`skills/orcacompass/SKILL.md`) backed by a small TypeScript CLI
 | [Verify and rejections](verify-and-rejections.md) | Checking that a worker's agent accepted its model, and routing around refusals |
 | [Troubleshooting](troubleshooting.md) | Install failures, agents not used, unknown usage, `wait`/`none`, refused models, stale metadata, config errors |
 | [Models and agents](models-and-agents.md) | The agents OrcaCompass routes to, their model sources, and how to inspect available models |
+| [Model data](model-data.md) | Data sources, cache timing, snapshot dates, and maintaining shared scores |
 | [Orca agents](orca-agents.md) | Every agent id Orca can launch and what OrcaCompass does with each one |
 | [Roadmap](roadmap.md) | What is done, what is next, known limitations, decisions taken |
 

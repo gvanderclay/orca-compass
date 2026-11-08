@@ -104,15 +104,16 @@ export const runCommand: Runner = (cmd, args, opts = {}) =>
   });
 
 /** Runs a command attached to this terminal (its prompts and output reach the user) and resolves with its exit code. */
-export type Interactive = (cmd: string, args: string[]) => Promise<number | null>;
+export type Interactive = (cmd: string, args: string[], opts?: { env?: NodeJS.ProcessEnv }) => Promise<number | null>;
 
-export const runInteractive: Interactive = (cmd, args) =>
+export const runInteractive: Interactive = (cmd, args, opts = {}) =>
   new Promise((resolve, reject) => {
+    const env = opts.env ? { ...process.env, ...opts.env } : undefined;
     // npx and npm are .cmd shims on Windows, which only run through a shell.
     const child =
       process.platform === 'win32'
-        ? spawn([cmd, ...args].map(quote).join(' '), { shell: true, stdio: 'inherit' })
-        : spawn(cmd, args, { stdio: 'inherit' });
+        ? spawn([cmd, ...args].map(quote).join(' '), { shell: true, stdio: 'inherit', env })
+        : spawn(cmd, args, { stdio: 'inherit', env });
     child.on('error', reject);
     child.on('close', (code) => resolve(code));
   });

@@ -1,7 +1,6 @@
 # Models and agents
 
-**Correct as of 2026-11-01** (OrcaCompass 0.1.0, with the OpenCode adapter and
-launch verification; Orca IDE 1.4.245). Models and providers change often:
+Models and providers change often:
 run `orcacompass status` for what your own machine and subscriptions offer
 right now. Available models vary by account and agent version.
 
@@ -44,9 +43,10 @@ existing worktree (`--worktree current` or a selector), not a new one.
 Model lists are read when the placement table is built: every
 `placementsTtlHours` (5 hours by default), on `orcacompass refresh`, or when
 your tier settings change (see [Tiers and
-routing](tiers-and-routing.md#when-placement-runs)). Cursor, Antigravity, Grok
-and OpenCode lists come from live commands (the last good list is used only
-when the command fails; a sign-in prompt skips the agent as `not signed in`).
+routing](tiers-and-routing.md#when-placement-runs)). Cursor, Antigravity and
+OpenCode lists come from live commands; Grok first reads its native model cache.
+For live listings, the last good list is used only when the command fails;
+a sign-in prompt skips the agent as `not signed in`.
 Claude's list is the catalog Claude Code caches under
 `~/.claude/cache/model-catalog` for your account, then Orca's catalog, then
 Models.dev. Model makers reachable today: Anthropic
@@ -60,9 +60,11 @@ Antigravity or Cursor; the Gemini CLI is not an agent here.
 These rules run when the placement table is built, and `orcacompass tiers`
 prints their result. The first rule that applies wins:
 
-1. Your `tierOverrides` for the exact model ID.
-2. Your `tierOverrides` for the model's family.
-3. Cursor's `auto`: Light and Daily (setting `cursorAuto`).
+1. Cursor's `auto`: Light and Daily when `cursorAuto` is on and there is no
+   exact `tierOverrides.auto` entry.
+2. Your `tierOverrides` for the exact model ID.
+3. Your `tierOverrides` for the model's family (from metadata, or inferred
+   from a recognized Claude/GPT versioned ID).
 4. The provider's own description ("For your toughest challenges" is Frontier,
    "Fastest for quick answers" is Light; Claude Code's account catalog and
    Codex's model cache carry these words).
@@ -80,8 +82,9 @@ Within an agent, only the newest release of each family per tier is kept;
 recognized Claude/GPT family IDs can be compared by numeric version before
 the metadata sources catch up. Provider descriptions also classify newly named
 models missing from those sources. Older releases are dropped silently.
-When two routes tie on usage, Claude and GPT
-models go before other vendors, then the newest release wins.
+After headroom, hot-session status, confidence and fast-variant checks,
+ties favor Claude/GPT families, then newer release dates. See
+[Ranking](tiers-and-routing.md#ranking) for the full order.
 
 ### Built-in family ladder
 

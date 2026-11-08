@@ -149,6 +149,8 @@ than working around it. If the setting reads `unknown`, it says so.
 
 ## Several workers at once
 
-Routing is stateless: back-to-back calls return the same route, and nothing
+Routing is stateless: back-to-back calls may return the same route, and nothing
 reserves capacity for workers that were just launched. When launching several
-workers at once, spread them over the route and its `alternatives`.
+workers at once, consider the route and its unblocked `alternatives`.
+Alternatives have no `launchArgs`: route again with `--agent <agent>` for the
+one you pick, then use that decision's launch arguments.

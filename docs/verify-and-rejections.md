@@ -1,8 +1,9 @@
 # Verify and rejections
 
 Discovery is an estimate. A model an agent *lists* can still be one this account
-cannot use (Claude Code launch ids come from Models.dev, not from the CLI; a
-Codex model may be enterprise-only; a Cursor model may be off in the account).
+cannot use (a cached Claude catalog can be stale, or discovery may fall back to
+Models.dev; a Codex model may be enterprise-only; a Cursor model may be off in
+the account).
 Orca does not check: `orca orchestration worker-start` reports the requested
 model as effective even when the agent cannot use it. `orcacompass verify`
 closes that gap. Code: `src/verify.ts`, `src/routing/rejection.ts`,

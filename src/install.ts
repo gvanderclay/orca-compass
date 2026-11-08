@@ -29,6 +29,11 @@ export interface InstallDeps {
 // A folder URL converts to a path ending in a separator; drop it so the path is a plain argument.
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]+$/, '');
 
+// skills can abort during forced exit after its telemetry fetch on Windows.
+// Limit the workaround to that child; npm and the user's environment stay unchanged.
+const skillProcessOptions = (): Parameters<Interactive>[2] =>
+  process.platform === 'win32' ? { env: { DISABLE_TELEMETRY: '1' } } : undefined;
+
 function versionParts(version: string): { core: bigint[]; pre?: string[] } {
   const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(version);
   if (!match || match[4]?.split('.').some((part) => /^0\d+$/.test(part))) throw new Error(`Invalid package version: ${version}`);
@@ -112,7 +117,7 @@ export async function install(opts: InstallOptions, deps: InstallDeps = {}): Pro
   if (opts.yes) skillArgs.push('--yes');
   for (const agent of opts.agents ?? []) skillArgs.push('--agent', agent);
   log(`Installing the OrcaCompass Skill ${version} with npx ${SKILLS_CLI}...`);
-  const skillCode = await commandResult(interactive, 'npx', skillArgs);
+  const skillCode = await commandResult(interactive, 'npx', skillArgs, skillProcessOptions());
   if (skillCode !== 0) {
     log(`The Skill was not installed (npx ${SKILLS_CLI} exited with ${skillCode ?? 'no code'}). ${opts.skillOnly ? 'Retry the same command.' : `The CLI is at ${version}; retry: npx orcacompass@latest install${opts.global ? ' --global' : ''}`}`);
     return 1;
@@ -171,7 +176,7 @@ export async function uninstall(opts: InstallOptions, deps: InstallDeps = {}): P
   if (opts.global) args.push('--global');
   if (opts.yes) args.push('--yes');
   for (const agent of opts.agents ?? []) args.push('--agent', agent);
-  const skillCode = await commandResult(interactive, 'npx', args);
+  const skillCode = await commandResult(interactive, 'npx', args, skillProcessOptions());
   if (skillCode !== 0) {
     log(`Skill removal did not complete (${skillCode ?? 'no exit code'}). The CLI was left unchanged. Retry: ${['orcacompass', 'uninstall', ...args.slice(4), ...(opts.skillOnly ? ['--skill-only'] : [])].join(' ')}`);
     return 1;
@@ -183,7 +188,7 @@ export async function uninstall(opts: InstallOptions, deps: InstallDeps = {}): P
   // skills remove can exit zero after cancellation or an individual removal error.
   // Ask its inventory (including legacy agent folders) before removing the shared CLI.
   try {
-    const result = await (deps.run ?? runCommand)('npx', ['-y', SKILLS_CLI, 'list', '--global', '--json']);
+    const result = await (deps.run ?? runCommand)('npx', ['-y', SKILLS_CLI, 'list', '--global', '--json'], skillProcessOptions());
     if (result.error || result.code !== 0) throw new Error(result.error || result.stderr.trim() || `Skill inventory exited with ${result.code}`);
     const skills: unknown = JSON.parse(result.stdout);
     if (!Array.isArray(skills) || skills.some((skill) => !skill || typeof skill.name !== 'string' || skill.scope !== 'global' || (skill.path !== null && typeof skill.path !== 'string'))) {
@@ -205,9 +210,9 @@ export async function uninstall(opts: InstallOptions, deps: InstallDeps = {}): P
   return 0;
 }
 
-async function commandResult(interactive: Interactive, cmd: string, args: string[]): Promise<number | null | string> {
+async function commandResult(interactive: Interactive, cmd: string, args: string[], opts?: Parameters<Interactive>[2]): Promise<number | null | string> {
   try {
-    return await interactive(cmd, args);
+    return await (opts ? interactive(cmd, args, opts) : interactive(cmd, args));
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
   }
