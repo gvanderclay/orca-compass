@@ -1,0 +1,381 @@
+{
+  "version": 3,
+  "entries": [
+    {
+      "agent": "codex",
+      "discovered": {
+        "models": [
+          {
+            "id": "gpt-6.1-sol",
+            "label": "GPT-6.1-Sol",
+            "description": "Latest workhorse model for coding and everyday work.",
+            "isDefault": true,
+            "defaultEffort": "medium",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "value": "ultra",
+                "label": "Ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "2x speed, increased usage"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-6-astra",
+            "label": "GPT-6-Astra",
+            "description": "Frontier intelligence for the most demanding work.",
+            "isDefault": false,
+            "defaultEffort": "medium",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "value": "ultra",
+                "label": "Ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "2x speed, increased usage"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-6.1-terra",
+            "label": "GPT-6.1 Terra",
+            "description": "GPT-6.1 Terra Codex model.",
+            "isDefault": false,
+            "defaultEffort": "low",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "value": "ultra",
+                "label": "Ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "1.5x speed"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-6-sol",
+            "label": "GPT-6-Sol",
+            "description": "Previous generation workhorse model.",
+            "isDefault": false,
+            "defaultEffort": "medium",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "value": "ultra",
+                "label": "Ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "1.5x speed"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-6-luna",
+            "label": "GPT-6-Luna",
+            "description": "Fast and affordable model for easier tasks.",
+            "isDefault": false,
+            "defaultEffort": "medium",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "1.5x speed"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-5.6-sol",
+            "label": "GPT-5.6-Sol",
+            "description": "Older generation workhorse model.",
+            "isDefault": false,
+            "defaultEffort": "low",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "value": "ultra",
+                "label": "Ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "1.5x speed, increased usage"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-5.6-terra",
+            "label": "GPT-5.6-Terra",
+            "description": "Older balanced model for straightforward work.",
+            "isDefault": false,
+            "defaultEffort": "medium",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "value": "ultra",
+                "label": "Ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "1.5x speed, increased usage"
+              }
+            ],
+            "supportsFastMode": true
+          },
+          {
+            "id": "gpt-5.6-luna",
+            "label": "GPT-5.6-Luna",
+            "description": "Older fast and efficient model.",
+            "isDefault": false,
+            "defaultEffort": "medium",
+            "efforts": [
+              {
+                "value": "low",
+                "label": "Low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "value": "medium",
+                "label": "Medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "value": "high",
+                "label": "High",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "value": "xhigh",
+                "label": "Extra high",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "value": "max",
+                "label": "Max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              }
+            ],
+            "serviceTiers": [
+              {
+                "value": "priority",
+                "label": "Fast",
+                "description": "1.5x speed, increased usage"
+              }
+            ],
+            "supportsFastMode": true
+          }
+        ],
+        "origin": "probe",
+        "at": 1793232000000,
+        "complete": true
+      }
+    }
+  ]
+}

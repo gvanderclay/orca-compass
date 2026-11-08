@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - run: npm run test:package
+      - name: Check package during a publish preview
+        run: npm --dry-run run test:package
+      - name: Build user guide (checks internal links)
+        if: runner.os == 'Linux'
+        run: npm run docs:build
+      - name: Save compiled CLI for the minimum-runtime check
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: compiled-cli
+          path: dist/
+
+  node20:
+    name: Packaged CLI (Node 20)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v8
+        with:
+          name: compiled-cli
+          path: dist/
+      # Test the compiled package without installing development tools on Node 20.
+      - run: npm run test:package

@@ -1,0 +1,95 @@
+name: Bug report
+description: Report a wrong route, a discovery problem, or a CLI error.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Found a security problem? Do not open an issue. Follow [SECURITY.md](https://github.com/manomilano/orca-compass/blob/main/SECURITY.md) instead.
+
+        Before you paste output, remove anything private: personal paths, account names or emails, tokens, and task content.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did OrcaCompass do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      placeholder: orcacompass route --tier daily --json
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: JSON output
+      description: Output of `orcacompass status --json` or `orcacompass route ... --json`. Paste only the relevant part, and remove anything private first.
+      render: json
+
+  - type: input
+    id: orcacompass-version
+    attributes:
+      label: OrcaCompass version
+      description: The npm version, or the commit if you run it from a clone.
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: orca-version
+    attributes:
+      label: Orca version
+      placeholder: 1.4.246
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      placeholder: "24.11.0"
+
+  - type: dropdown
+    id: agents
+    attributes:
+      label: Agent CLIs installed
+      multiple: true
+      options:
+        - claude
+        - codex
+        - cursor
+        - grok
+        - antigravity
+        - opencode
+        - muse
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Agent CLI versions, config you changed, or steps to reproduce.

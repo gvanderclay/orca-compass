@@ -1,0 +1,5 @@
+
+Default model: grok-4.7
+
+Available models:
+  * grok-4.7 (default)

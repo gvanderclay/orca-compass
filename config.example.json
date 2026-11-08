@@ -1,0 +1,22 @@
+{
+  "allowAgents": ["claude", "codex", "cursor"],
+  "denyAgents": [],
+  "pins": {
+    "daily": { "agent": "claude", "model": "claude-sonnet-5-5" }
+  },
+  "tierOverrides": { "grok-4.7": "advanced" },
+  "thresholds": { "longPercent": 95, "sessionPercent": 90 },
+  "defaultEffort": {
+    "light": "low",
+    "daily": "medium",
+    "advanced": "medium",
+    "frontier": "high"
+  },
+  "scoreWeight": 0.4,
+  "modelsDevTtlHours": 24,
+  "usageStaleMinutes": 30,
+  "excludeNoZdr": false,
+  "cursorAuto": true,
+  "preferRiskLimit": 100,
+  "banModels": []
+}

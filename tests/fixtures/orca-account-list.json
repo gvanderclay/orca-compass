@@ -1,0 +1,117 @@
+{
+  "id": "synthetic-fixture",
+  "ok": true,
+  "result": {
+    "rateLimits": {
+      "claude": {
+        "provider": "claude",
+        "session": {
+          "usedPercent": 10,
+          "windowMinutes": 300,
+          "resetsAt": 1793239200000,
+          "resetDescription": null
+        },
+        "weekly": {
+          "usedPercent": 50,
+          "windowMinutes": 10080,
+          "resetsAt": 1793282400000,
+          "resetDescription": null
+        },
+        "fableWeekly": {
+          "usedPercent": 75,
+          "windowMinutes": 10080,
+          "resetsAt": 1793282400000,
+          "resetDescription": null
+        },
+        "monthly": null,
+        "extraUsage": null,
+        "updatedAt": 1793232000000,
+        "error": null,
+        "status": "ok",
+        "usageMetadata": {}
+      },
+      "codex": {
+        "provider": "codex",
+        "session": null,
+        "weekly": {
+          "usedPercent": 20,
+          "windowMinutes": 10080,
+          "resetsAt": 1793736000000,
+          "resetDescription": null
+        },
+        "rateLimitResetCredits": {
+          "availableCount": 1,
+          "totalEarnedCount": 1,
+          "nextExpiresAt": 1793318400000,
+          "credits": [
+            {
+              "status": "available",
+              "expiresAt": 1793318400000,
+              "grantedAt": 1793145600000
+            }
+          ]
+        },
+        "updatedAt": 1793232000000,
+        "error": null,
+        "status": "ok",
+        "usageMetadata": {}
+      },
+      "cursor": {
+        "provider": "cursor",
+        "session": null,
+        "weekly": null,
+        "updatedAt": 1793232000000,
+        "error": null,
+        "status": "ok",
+        "monthly": {
+          "usedPercent": 2.5,
+          "windowMinutes": 44640,
+          "resetsAt": 1795132800000,
+          "resetDescription": null
+        },
+        "buckets": [
+          {
+            "name": "Cursor Models",
+            "usedPercent": 1.25,
+            "windowMinutes": 44640,
+            "resetsAt": 1795132800000,
+            "resetDescription": null
+          },
+          {
+            "name": "Other Models",
+            "usedPercent": 6.25,
+            "windowMinutes": 44640,
+            "resetsAt": 1795132800000,
+            "resetDescription": null
+          }
+        ],
+        "usageMetadata": {
+          "source": "cli"
+        }
+      },
+      "grok": {
+        "provider": "grok",
+        "session": null,
+        "weekly": null,
+        "updatedAt": 1793232000000,
+        "error": "Not signed in to Grok \u2014 run grok login",
+        "status": "unavailable"
+      },
+      "antigravity": {
+        "provider": "antigravity",
+        "session": null,
+        "weekly": null,
+        "updatedAt": 1793232000000,
+        "error": "Antigravity usage is not available. The Antigravity CLI (`agy`) was not found on this machine.",
+        "status": "unavailable",
+        "usageMetadata": {
+          "source": "cli",
+          "attemptedSources": [
+            "cli"
+          ],
+          "failureKind": "cli-unavailable"
+        }
+      }
+    }
+  }
+}

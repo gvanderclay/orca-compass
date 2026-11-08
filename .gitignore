@@ -1,0 +1,49 @@
+# Build output and dependencies
+node_modules/
+dist/
+*.tgz
+*.tsbuildinfo
+
+# Internal planning notes and local reports
+buildingplan.md
+release-instructions.md
+coverage/
+
+# Secrets and credentials: never commit
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials.json
+*.credentials.json
+*token*.json
+
+# Local tool and editor state
+.claude/
+.codex/
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-error.log*
+tmp/
+*.tmp
+
+# User guide build output
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/.vitepress/.temp/

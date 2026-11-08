@@ -1,0 +1,60 @@
+{
+  "name": "orcacompass",
+  "version": "0.1.0",
+  "description": "Usage-aware agent/model/effort routing for Orca coordinator agents",
+  "license": "Apache-2.0",
+  "author": "manomilano",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manomilano/orca-compass.git"
+  },
+  "homepage": "https://github.com/manomilano/orca-compass#readme",
+  "bugs": {
+    "url": "https://github.com/manomilano/orca-compass/issues"
+  },
+  "keywords": [
+    "orca",
+    "agent-skill",
+    "ai-agents",
+    "llm",
+    "model-routing",
+    "claude-code",
+    "codex",
+    "cli"
+  ],
+  "type": "module",
+  "bin": {
+    "orcacompass": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "data",
+    "skills",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc",
+    "prepublishOnly": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc && npm test && npm run test:package",
+    "test": "vitest run",
+    "snapshot": "node scripts/make-snapshot.mjs",
+    "test:package": "node scripts/test-package.mjs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitepress": "^1.6.4",
+    "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "vitepress": {
+      "vite": "^6.4.4"
+    }
+  }
+}
