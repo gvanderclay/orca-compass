@@ -49,7 +49,7 @@ orcacompass --help
 | `uninstall` | Removes the selected Skill; full `--global` also removes the CLI | selected Skill files; optionally the global npm package |
 
 Agent ids everywhere: `claude`, `codex`, `cursor`, `grok`, `antigravity`,
-`opencode`, `muse`, in any letter case. Tier and demand names are
+`opencode`, `pi`, `muse`, in any letter case. Tier and demand names are
 case-insensitive too. Commands that change the config (`agents`, `prefer`)
 reject unknown ids (exit 1). `route` goes on and adds a warning that suggests
 the id probably meant, such as `unknown agent "cursor-agent" in
@@ -209,12 +209,14 @@ cursor       yes        yes              ok           yes     used
 grok         yes        no               unavailable  yes     not used: not enabled in Orca
 antigravity  yes        yes              ok           yes     used
 opencode     yes        yes              unknown      yes     used as last resort
+pi           yes        yes              unknown      yes     not used: Orca 1.4.253 cannot start Pi on a chosen model
 muse         no         yes              unknown      yes     not used: not installed
 ```
 
 The verdict's reason is the strongest one that applies: `excluded by config`,
 `excluded by request`, `not enabled in Orca`, `not signed in or unavailable`,
-`not installed`, `not signed in`, `no models`.
+`not installed`, `not signed in`, `no models`, and for Pi `Orca <version>
+cannot start Pi on a chosen model`.
 
 ```sh
 orcacompass agents disable grok muse     # adds to denyAgents

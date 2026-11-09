@@ -19,6 +19,7 @@ closes that gap. Code: `src/verify.ts`, `src/routing/rejection.ts`,
 | Grok Build | Exits 1 |
 | Antigravity | Exits 1 |
 | OpenCode | Prints `Error: Model unavailable: …` |
+| Pi | Exits 1 after `Error: Model "…" not found. Use --list-models …` (from Pi's source; not yet seen through Orca, which cannot start Pi on a chosen model) |
 
 ## How `verify` works
 
@@ -109,17 +110,19 @@ agy 1.4.11 and opencode, launched with an unknown or unavailable model:
 | Grok Build | `Couldn't set model 'grok-9-fake': Invalid params: "unknown model id".` |
 | Antigravity | `invalid model selection (--model "gemini-9-fake" …): model gemini-9-fake is not recognized as a known model …` |
 | OpenCode | `Error: Model unavailable: openrouter/fake/nonexistent-9` |
+| Pi | `Error: Model "anthropic/claude-opus-9-9" not found. Use --list-models to see available models.` (from Pi 1.5.0's source) |
 
 Matching is case-insensitive on these fragments: `model is not supported`,
 `issue with the selected model`, `cannot use this model`, `couldn't set model`,
 `unknown model id`, `invalid model selection`, `not recognized as a known
-model`, `model unavailable`. Long lines wrap in a terminal, so each line is
+model`, `model unavailable`, `model "…" not found. Use --list-models`. Long lines wrap in a terminal, so each line is
 also tried joined with the next. The saved message drops the agent's
 decoration (`■`, `ERROR:`), Cursor's list of available models, and a sentence
 cut off by wrapping; it is capped at 240 characters.
 
-Not refusals: Codex's ``Model metadata for `x` not found`` and Claude Code's
-`doesn't recognize the model "x"`, which still run the model. A changed wording
+Not refusals: Codex's ``Model metadata for `x` not found``, Claude Code's
+`doesn't recognize the model "x"` and Pi's `Model "x" not found for
+provider "p". Using custom model id.`, which still run the model. A changed wording
 in a newer agent version shows up as `stalled` or `failed` with the terminal
 tail instead of `rejected`.
 

@@ -14,6 +14,9 @@ for current behavior and supported agents.
 - Replace the experimental read of Orca's internal agent-switch store with a
   supported interface.
 - Include OpenCode's existing-worktree requirement in launch arguments.
+- Route Pi once an Orca release starts it on a chosen model (stablyai/orca#36587),
+  and read Pi's models through a supported Orca interface instead of its
+  internal catalog file.
 - Evaluate effort choices across tasks and models, and warn about unknown
   configuration keys that may be typos.
 

@@ -70,7 +70,7 @@ from (`supportSource`), most trusted first:
 | `supportSource` | Meaning | Agents |
 | --- | --- | --- |
 | `provider` | The agent CLI's own model list or cache | Claude Code (its cached account catalog), Codex (`models_cache.json`), Cursor (effort variants in `cursor-agent models`), Grok (`models_cache.json`), Antigravity Gemini variants (effort in the id) |
-| `orca` | Orca's effort menu or catalog for that agent | Claude Code and Codex (when Orca's catalog is the source), Grok (from `grok models`, with Orca's ceilings), Antigravity non-Gemini models (`low`/`medium`/`high`), OpenCode (none) |
+| `orca` | Orca's effort menu or catalog for that agent | Claude Code and Codex (when Orca's catalog is the source), Grok (from `grok models`, with Orca's ceilings), Antigravity non-Gemini models (`low`/`medium`/`high`), OpenCode (none), Pi (from Orca's Pi catalog) |
 | `catalog` | Models.dev `reasoning_options` | Claude Code and Codex when no local list is available |
 | `assumed` | A built-in guess | Claude Code and Codex on the Models.dev fallback when no efforts are listed: `low`, `medium`, `high`, `xhigh`, `max` |
 
@@ -110,7 +110,7 @@ Use `--effort` only when the user asked for a specific level.
 | --- | --- | --- |
 | `flag` | `--model <id> --effort <e>` | Claude Code, Codex, Grok Build, Antigravity non-Gemini models |
 | `model-id` | `--model <variant id>`, no `--effort`; `route.effort` is `null` | Cursor (`claude-opus-5-5-high`; the plain id stands for `medium`), Antigravity Gemini (`gemini-3.8-flash-high`) |
-| `provider-default` | `--model <id>` only; the agent uses its own default | OpenCode (Orca passes no effort), Cursor Auto, any model with no settable effort |
+| `provider-default` | `--model <id>` only; the agent uses its own default | OpenCode (Orca passes no effort), Cursor Auto, a Pi model whose only level is `off`, any model with no settable effort |
 
 When `applied` is `provider-default`, the reason reads `effort: not set, codex
 uses its own default (medium); high wanted from high reasoning demand (balanced
@@ -141,6 +141,13 @@ reports one. The orchestrator must not claim an effort was set in that case.
   grouped like Cursor's; other ids (Claude, GPT-OSS) take Orca's `--effort`
   `low`/`medium`/`high`.
 - **OpenCode**: no effort; Orca does not support it for OpenCode.
+- **Pi**: each model's thinking levels from Orca's Pi catalog. Pi's `off` has
+  no OrcaCompass effort and is dropped, so `--effort none` excludes Pi; a
+  model offering only `off` and `high` takes `high` for a `low` job (shown as
+  `adjusted`); a model offering only `off` launches at Pi's default. Orca
+  passes `--effort` to Pi as its thinking level, and Pi may lower it to what
+  the model supports: the effort in the route and in Orca's launch receipt is
+  the one requested, not the one Pi applied.
 
 ## The `effort` object in route JSON
 

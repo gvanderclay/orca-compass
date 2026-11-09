@@ -69,7 +69,8 @@ Ask your orchestrator to "set up OrcaCompass" in chat instead (it reads
 | `not enabled in Orca` | The agent is switched off in Orca's settings. Turn it on there, or leave it off |
 | `excluded by config` | `denyAgents` or `allowAgents` leaves it out. `orcacompass agents enable <id>`, or `agents reset` |
 | `no models` | The agent was found but listed no models; `status` shows the listing's error |
-| `used as last resort` | OpenCode is used only when no other agent can take the job. Change `lastResortAgents` to make it ordinary; see [Configuration](configuration.md#which-agents-and-models) |
+| `Orca <version> cannot start Pi on a chosen model` | No released Orca accepts `--model` for Pi yet, so Pi is listed but not routed. It is used once an Orca release with that support is installed. `Orca version unknown` means `orca --version` failed |
+| `used as last resort` | OpenCode and Pi are used only when no other agent can take the job. Change `lastResortAgents` to make it ordinary; see [Configuration](configuration.md#which-agents-and-models) |
 
 OrcaCompass looks for agent executables on the PATH of the shell that runs it.
 On macOS and Linux it then tries the folders Orca adds to its own PATH, so a

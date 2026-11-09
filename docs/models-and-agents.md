@@ -20,6 +20,7 @@ does not report as `unavailable`, and that you have not switched off with
 | Grok Build (xAI) | `grok` | `grok` (also `$GROK_HOME/bin`, `~/.grok/bin`) | `~/.grok/models_cache.json`, then `grok models` | per model from that cache; else `low` to `xhigh` (Grok 4.5 up to `high`) | weekly credits or monthly budget | Supported; verified on Windows |
 | Antigravity (Google) | `antigravity` | `agy` (also `%LOCALAPPDATA%\agy\bin`, `~/.local/bin`) | `agy models` | `low` to `high` | weekly, and 5-hour when reported, per quota group | Supported; verified on Windows |
 | OpenCode | `opencode` | `opencode` (also `~/.opencode/bin`) | `opencode models` | none (Orca passes no effort to OpenCode) | none: pay per use or local | Supported; last resort by default |
+| Pi | `pi` | `pi` | Orca's Pi catalog (`agent-model-catalog.json`) | per model from that catalog, without Pi's `off` | none: Pi's own provider sign-ins | Detected; routed only on an Orca release that starts Pi on a chosen model (none yet); last resort by default |
 | Muse (Meta) | `muse` | `muse` | none (Orca has no Muse model list) | — | none | Detected only, never routed |
 
 **OpenCode** lists every model it can reach: providers with an API key
@@ -39,6 +40,27 @@ a `-free` copy is rated as the model it copies. Local models usually have no
 capability score: give them a tier with `tierOverrides` (for example
 `"gemma4:12b": "light"`). Orca accepts `--model` for OpenCode only in an
 existing worktree (`--worktree current` or a selector), not a new one.
+
+**Pi** reaches models through providers it signs in to itself (Anthropic,
+OpenAI, OpenRouter and others, by subscription or API key). Its models come
+from Orca's own Pi catalog, the newest Pi entry of Orca's internal
+`agent-model-catalog.json` (not a supported Orca interface), and the agent's
+note names the file and when Orca configured that entry. Ids are Pi's
+`provider/id` selectors; an id ending in a Pi thinking level
+(`…:high`) is skipped, while ids such as `…:free` are kept. A model reachable
+through several providers is kept once, from the cheapest (as for OpenCode),
+then by provider name, and the note lists the other providers. Orca does not
+track the limits of Pi's sign-ins, so Pi is a last-resort agent by default:
+a Claude or Codex model that is blocked does not move silently onto Pi, which
+may draw on the same subscription. To keep a family on its native agent but
+not on Pi, use `orcacompass agents disable pi`; a ban (`banModels`) drops the
+family from Pi too.
+
+No released Orca starts Pi on a chosen model yet (stablyai/orca#36587 adds
+it), so OrcaCompass reads `orca --version` on every call and lists Pi with
+the reason `Orca <version> cannot start Pi on a chosen model` until a release
+with that support is out; `setup` does not preselect it. An Orca upgrade
+takes effect on the next call, without a table rebuild.
 
 Model lists are read when the placement table is built: every
 `placementsTtlHours` (5 hours by default), on `orcacompass refresh`, or when

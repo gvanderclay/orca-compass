@@ -51,7 +51,7 @@ Columns:
 | `ante` | `ante` | — | — | Not supported |
 | `trae` | `traecli` | — | — | Not supported |
 | `mimo-code` | `mimo` | — | — | Not supported |
-| `pi` | `pi` | — | — | Not supported |
+| `pi` | `pi` | Not in a released Orca yet (stablyai/orca#36587 adds `--model <provider/id>`, effort as Pi's thinking level) | — | Detected, not routed yet: models come from Orca's Pi catalog, but OrcaCompass routes Pi only on an Orca release that starts it on a chosen model. Until then `route`, `status`, `agents` and `setup` list it with the reason `Orca <version> cannot start Pi on a chosen model`. A last resort by default once routed |
 | `prime-agent` | `prime-agent` | — | — | Not supported |
 | `aider` | `aider` | — | — | Not supported |
 | `goose` | `goose` | — | — | Not supported |
@@ -113,17 +113,17 @@ Source: `src/routing/environment.ts` and `src/placements/agents/*.ts`, `src/rout
 
 ### Per agent
 
-| | Claude | Codex | Cursor | Antigravity | Grok | OpenCode | Muse |
-|---|---|---|---|---|---|---|---|
-| **Adapter** | `claude.ts` | `codex.ts` | `cursor.ts` | `antigravity.ts` | `grok.ts` | `opencode.ts` | `muse.ts` |
-| **Finds** | `claude` on PATH | `codex` on PATH | `cursor-agent` on PATH or `%LOCALAPPDATA%\cursor-agent` | `agy` on PATH, `%LOCALAPPDATA%\agy\bin` or `~/.local/bin` | `grok` on PATH, `$GROK_HOME/bin` or `~/.grok/bin` | `opencode` on PATH or `~/.opencode/bin` | `muse` on PATH |
-| **Model list** | Claude Code's cached account catalog, then Orca's `agent-model-catalog.json`, then Anthropic families in Models.dev | `$CODEX_HOME/models_cache.json` (`visibility: list`), then Orca's `agent-model-catalog.json`, then Models.dev's Codex ladder families without `-latest` aliases | `cursor-agent models`, live | `agy models`, live (`id<TAB>label` rows) | `~/.grok/models_cache.json` (Grok's own, hidden models dropped); else `grok models`, live | `opencode models`, live (`provider/model` rows; OpenRouter `~` aliases skipped) | None: detected only, never routed |
-| **Grouping** | — | — | Variants grouped by base id: effort, `-thinking` and `-fast` are stripped; `cursor-` prefix and old `claude-4.6-sonnet` ids normalized | `-low/-medium/-high` ids grouped; `-thinking` dropped to match Models.dev | — | A model listed by several providers kept once, from the cheapest (local, then free, then paid) | — |
-| **Effort** | From the selected account or Orca catalog; on Models.dev fallback, its effort options or assumed `low` to `max` | Codex cache levels + default, then Orca's catalog; on Models.dev fallback, its effort options or assumed `low` to `max` | Inside the model id (`…-high`); the plain id stands for `medium`; fast-only levels dropped | Gemini: inside the id. Others: Orca's `low`/`medium`/`high` via `--effort` | Grok cache levels + default (none for multi-agent models); from `grok models`: `low` to `xhigh`, capped as in Orca's seed (4.5 up to `high`) | None (Orca passes no effort to OpenCode) | — |
-| **`launchArgs`** | `--model --effort` | `--model --effort` | `--model <variant id>` | `--model <variant id>` (Gemini) or `--model --effort` | `--model --effort` | `--model <provider/model>` | — |
-| **Usage pools** | `session`, `weekly`, plus `fableWeekly` for Fable | `session`, `weekly` | `monthly` + `Cursor Models` or `Other Models` bucket (which models draw on which is inferred) | Per quota group (`Gemini Models`, `Claude and GPT models`): 5-hour and long; else Orca's `session`/`weekly` | `weekly`, `monthly` | None: pay per use or local; the route says how it is paid | — |
-| **Refusal `verify` matches** | `There's an issue with the selected model` (idles) | `model is not supported when using Codex…` (idles) | `Cannot use this model` (exits) | `invalid model selection` / `not recognized as a known model` (exits) | `Couldn't set model … unknown model id` (exits) | `Model unavailable` | — |
-| **Special rule** | — | — | Cursor `auto` placed only in Light and Daily | — | — | Last resort by default (`lastResortAgents`); routes note that Orca needs an existing worktree | — |
+| | Claude | Codex | Cursor | Antigravity | Grok | OpenCode | Pi | Muse |
+|---|---|---|---|---|---|---|---|---|
+| **Adapter** | `claude.ts` | `codex.ts` | `cursor.ts` | `antigravity.ts` | `grok.ts` | `opencode.ts` | `pi.ts` | `muse.ts` |
+| **Finds** | `claude` on PATH | `codex` on PATH | `cursor-agent` on PATH or `%LOCALAPPDATA%\cursor-agent` | `agy` on PATH, `%LOCALAPPDATA%\agy\bin` or `~/.local/bin` | `grok` on PATH, `$GROK_HOME/bin` or `~/.grok/bin` | `opencode` on PATH or `~/.opencode/bin` | `pi` on PATH | `muse` on PATH |
+| **Model list** | Claude Code's cached account catalog, then Orca's `agent-model-catalog.json`, then Anthropic families in Models.dev | `$CODEX_HOME/models_cache.json` (`visibility: list`), then Orca's `agent-model-catalog.json`, then Models.dev's Codex ladder families without `-latest` aliases | `cursor-agent models`, live | `agy models`, live (`id<TAB>label` rows) | `~/.grok/models_cache.json` (Grok's own, hidden models dropped); else `grok models`, live | `opencode models`, live (`provider/model` rows; OpenRouter `~` aliases skipped) | Pi's newest entry in Orca's `agent-model-catalog.json` (`provider/id`; ids ending in `:<thinking level>` skipped). An internal Orca file, not a supported interface; `pi --list-models` is not used | None: detected only, never routed |
+| **Grouping** | — | — | Variants grouped by base id: effort, `-thinking` and `-fast` are stripped; `cursor-` prefix and old `claude-4.6-sonnet` ids normalized | `-low/-medium/-high` ids grouped; `-thinking` dropped to match Models.dev | — | A model listed by several providers kept once, from the cheapest (local, then free, then paid) | As OpenCode, then by provider name; the other providers are named in the agent's note | — |
+| **Effort** | From the selected account or Orca catalog; on Models.dev fallback, its effort options or assumed `low` to `max` | Codex cache levels + default, then Orca's catalog; on Models.dev fallback, its effort options or assumed `low` to `max` | Inside the model id (`…-high`); the plain id stands for `medium`; fast-only levels dropped | Gemini: inside the id. Others: Orca's `low`/`medium`/`high` via `--effort` | Grok cache levels + default (none for multi-agent models); from `grok models`: `low` to `xhigh`, capped as in Orca's seed (4.5 up to `high`) | Orca's catalog levels; Pi's `off` is dropped (`--effort none` excludes Pi); a model with none launches at Pi's default | — |
+| **`launchArgs`** | `--model --effort` | `--model --effort` | `--model <variant id>` | `--model <variant id>` (Gemini) or `--model --effort` | `--model --effort` | `--model <provider/id> --effort` | — |
+| **Usage pools** | `session`, `weekly`, plus `fableWeekly` for Fable | `session`, `weekly` | `monthly` + `Cursor Models` or `Other Models` bucket (which models draw on which is inferred) | Per quota group (`Gemini Models`, `Claude and GPT models`): 5-hour and long; else Orca's `session`/`weekly` | `weekly`, `monthly` | None: Pi signs in to each provider itself and Orca tracks none of those limits | — |
+| **Refusal `verify` matches** | `There's an issue with the selected model` (idles) | `model is not supported when using Codex…` (idles) | `Cannot use this model` (exits) | `invalid model selection` / `not recognized as a known model` (exits) | `Couldn't set model … unknown model id` (exits) | `Model "…" not found. Use --list-models` | — |
+| **Special rule** | — | — | Cursor `auto` placed only in Light and Daily | — | — | Last resort by default (`lastResortAgents`); routes note that Orca needs an existing worktree | Routed only on an Orca release that starts Pi on a chosen model (none yet); last resort by default | — |
 
 ### Where OrcaCompass and Orca disagree today
 
@@ -139,6 +139,12 @@ Source: `src/routing/environment.ts` and `src/placements/agents/*.ts`, `src/rout
 - **OpenCode:** the worktree rule is only a note in `reasons`; `launchArgs` do
   not add `--worktree`, so the caller must pick `--worktree current` or an
   existing one.
+- **Pi:** no released Orca accepts `--model` for Pi yet (stablyai/orca#36587
+  adds it). OrcaCompass reads `orca --version` on every call and routes Pi
+  only from the first release with that support; the minimum is unset until
+  one ships, so Pi is never routed today. An unknown version also keeps it
+  out. Orca's launch receipt for Pi echoes the requested effort, not the level
+  Pi applies after clamping it to the model.
 - **Folder trust:** OrcaCompass does not check it. Orca handles it for Claude,
   Codex, Cursor and Antigravity (and Muse through its launch flag). Grok
   can stop at its trust prompt; OpenCode has no auto-trust in Orca,
