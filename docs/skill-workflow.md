@@ -110,6 +110,16 @@ It answers:
 | `failed` | The worker ended on its own | Read `tail`, release it, replace it as for `rejected`, excluding that agent for this job |
 | `unknown` | No verdict within `--wait` | Report the timeout and continue normal Orca supervision without repeating startup verification |
 
+A structured (chat) worker has no terminal, and the reply carries
+`"mode": "structured"`. `verify` then follows only the worker's lifecycle
+(tested on Orca 1.4.253): `reported` or `failed`, otherwise `unknown`. It
+cannot see a model refusal, so `unknown` does not mean the model was accepted.
+Read the transcript with `orca orchestration worker-read --dispatch <dispatchId>
+--source auto --json` when in doubt. A structured `failed` has no `tail` and
+may be a failed task, not a failed start: read the transcript, release the
+worker, and replace it or exclude the agent only if the transcript shows the
+agent failing to start.
+
 Never start the replacement before the cleanup succeeded, and never stop a
 worker `verify` called `started`. Details: [Verify and rejections](verify-and-rejections.md).
 

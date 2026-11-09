@@ -635,6 +635,65 @@ describe('verify and rejected', () => {
     expect(await main(['verify', '--dispatch', 'x', '--wait', 'soon'], io, verifyDeps)).toBe(1);
   });
 
+  describe('structured workers', () => {
+    const structured = (state: string, outcome: string, tail?: string[]): Runner => async (cmd, args, opts) => {
+      if (args[0] !== 'orchestration') return runner(cmd, args, opts);
+      calls.push(args);
+      const mode = { mode: 'structured', preferred: 'structured' };
+      const launch = { effective: { agent: 'claude', model: 'claude-sonnet-5-5' } };
+      const projection = { outcome, stage: { worker: state }, liveness: { verdict: 'unverifiable' } };
+      return { code: 0, stderr: '', stdout: JSON.stringify({ ok: true, result: { dispatch: { taskId: 'task_1' }, worker: { state, startOptions: { mode, launch } }, projection, ...(tail ? { terminal: { tail } } : {}) } }) };
+    };
+    const calls: string[][] = [];
+    const rejectedFile = () => join(process.env.ORCACOMPASS_HOME!, 'cache', 'rejected-models.json');
+    const verifyWith = async (run: Runner) => {
+      calls.length = 0;
+      stdout = [];
+      let elapsed = NOW;
+      expect(await main(['verify', '--dispatch', 'ctx_1', '--wait', '3', '--json'], io, { ...verifyDeps, run, clock: () => elapsed, sleep: async (ms) => { elapsed += ms; } })).toBe(0);
+      return JSON.parse(out());
+    };
+
+    it('points an unknown verdict at worker-read --source auto and writes no refusal', async () => {
+      const v = await verifyWith(structured('ready', 'in_progress'));
+      expect(v).toMatchObject({ status: 'unknown', mode: 'structured' });
+      expect(v.next).toEqual(['keep waiting as usual; verify cannot see whether the agent accepted the model, so read the transcript if in doubt: orca orchestration worker-read --dispatch ctx_1 --source auto --json']);
+      expect(calls.every((a) => a[1] === 'worker-show')).toBe(true);
+      expect(() => readFileSync(rejectedFile(), 'utf8')).toThrow();
+    });
+
+    it('treats a reported worker like any other and a failed one as release-only, with no refusal cached', async () => {
+      expect(await verifyWith(structured('succeeded', 'succeeded'))).toMatchObject({ status: 'reported', next: ['nothing: wait for worker_done as usual'] });
+      const failed = await verifyWith(structured('failed', 'failed'));
+      expect(failed).toMatchObject({ status: 'failed', mode: 'structured', cleanup: [['orca', 'orchestration', 'worker-release', '--dispatch', 'ctx_1', '--json']] });
+      const transcript = 'orca orchestration worker-read --dispatch ctx_1 --source auto --json';
+      expect(failed.next).toEqual([
+        `read why it failed: ${transcript}`,
+        'then clean up: orca orchestration worker-release --dispatch ctx_1 --json',
+        'only if the transcript shows the agent failing to start (model, account, limits, first-time setup): route again with --exclude-agent claude for this job, start the replacement on the same Task: orca orchestration worker-start --task task_1 --retry-of ctx_1 --worktree <same placement> <new launchArgs> --json, and tell the user which agent failed to start, why, and how they can fix it',
+        'if the task itself failed, keep this agent available and tell the user what failed; do not start a replacement on this evidence alone',
+      ]);
+      // Nothing in the list asks for a replacement or an exclusion without first requiring evidence of a failed start.
+      for (const step of failed.next.filter((n: string) => /--retry-of|--exclude-agent|failed to start/.test(n))) expect(step).toMatch(/^only if the transcript shows/);
+      expect(failed).not.toHaveProperty('skippedForHours');
+      expect(() => readFileSync(rejectedFile(), 'utf8')).toThrow();
+    });
+
+    it('treats a worker whose state and outcome disagree as unknown, with no cleanup or replacement step', async () => {
+      const v = await verifyWith(structured('ready', 'failed'));
+      expect(v).toMatchObject({ status: 'unknown', mode: 'structured', cleanup: [] });
+      expect(v.next.join('\n')).not.toMatch(/clean up|--retry-of|--exclude-agent/);
+      expect(() => readFileSync(rejectedFile(), 'utf8')).toThrow();
+    });
+
+    it('never records a refusal even if a response carries refusal text', async () => {
+      const v = await verifyWith(structured('failed', 'failed', [refusal]));
+      expect(v.status).toBe('failed');
+      expect(v).not.toHaveProperty('message');
+      expect(() => readFileSync(rejectedFile(), 'utf8')).toThrow();
+    });
+  });
+
   it('tells the coordinator to report a failed start to the user, and records no skip', async () => {
     const failedWorker: Runner = async (cmd, args, opts) => {
       if (args[0] === 'orchestration' && args[1] === 'worker-read') {
@@ -646,7 +705,13 @@ describe('verify and rejected', () => {
     await main(['verify', '--dispatch', 'ctx_1', '--json'], io, { ...verifyDeps, run: failedWorker });
     const v = JSON.parse(out());
     expect(v.status).toBe('failed');
-    expect(v.next).toContain('tell the user which agent failed to start, why, and how they can fix it');
+    expect(v.next).toEqual([
+      'clean up: orca orchestration worker-release --dispatch ctx_1 --json',
+      'if the tail shows the agent failing to start, route again with --exclude-agent claude for this job',
+      'start the replacement on the same Task: orca orchestration worker-start --task task_1 --retry-of ctx_1 --worktree <same placement> <new launchArgs> --json',
+      'tell the user which agent failed to start, why, and how they can fix it',
+    ]);
+    expect(v).not.toHaveProperty('mode');
 
     stdout = [];
     await main(['rejected'], io, deps);

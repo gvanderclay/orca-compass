@@ -244,6 +244,8 @@ function verifyNext(d: Verdict, skipHours: number | undefined): string[] {
   const retry = `start the replacement on the same Task: orca orchestration worker-start --task ${d.taskId ?? '<task_id>'} --retry-of ${d.dispatchId} --worktree <same placement> <new launchArgs> --json`;
   const cleanup = d.cleanup.map((argv) => argv.join(' ')).join(', then ');
   const exclude = `--exclude-agent ${d.agent ?? '<agent>'}`;
+  // A structured worker has no terminal: its transcript is the only place to see why it ended.
+  const transcript = `orca orchestration worker-read --dispatch ${d.dispatchId} --source auto --json`;
   switch (d.status) {
     case 'started':
     case 'reported':
@@ -255,6 +257,15 @@ function verifyNext(d: Verdict, skipHours: number | undefined): string[] {
         retry,
       ];
     case 'failed':
+      // A structured worker has no tail and Orca marks it failed for any reason, including a failed task: replace it only when the transcript shows a failed start.
+      if (d.mode === 'structured') {
+        return [
+          `read why it failed: ${transcript}`,
+          `then clean up: ${cleanup}`,
+          `only if the transcript shows the agent failing to start (model, account, limits, first-time setup): route again with ${exclude} for this job, ${retry}, and tell the user which agent failed to start, why, and how they can fix it`,
+          'if the task itself failed, keep this agent available and tell the user what failed; do not start a replacement on this evidence alone',
+        ];
+      }
       return [
         `clean up: ${cleanup}`,
         `if the tail shows the agent failing to start, route again with ${exclude} for this job`,
@@ -268,7 +279,9 @@ function verifyNext(d: Verdict, skipHours: number | undefined): string[] {
         'if it asks a question, answer it in its terminal; otherwise keep waiting',
       ];
     default:
-      return ['keep waiting as usual; run verify again later or read the terminal'];
+      return d.mode === 'structured'
+        ? [`keep waiting as usual; verify cannot see whether the agent accepted the model, so read the transcript if in doubt: ${transcript}`]
+        : ['keep waiting as usual; run verify again later or read the terminal'];
   }
 }
 

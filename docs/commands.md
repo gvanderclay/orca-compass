@@ -127,7 +127,10 @@ orcacompass verify --dispatch <dispatchId> [--wait 60] [--json]
 ```
 
 Watches the worker Orca just started (`worker-show --full`, then `worker-read
---source terminal` with 1.5 s between polls). The total budget includes the
+--source terminal` with 1.5 s between polls). A structured (chat) worker has no
+terminal: `worker-show --full` reports `mode: structured` and `verify` polls
+`worker-show --full` instead, following the lifecycle only (see
+[Verify and rejections](verify-and-rejections.md#structured-workers)). The total budget includes the
 initial lookup, reads, and polling delays. The default and maximum are 60 s.
 `--wait` accepts 0–60 seconds, with 0 returning `unknown` immediately. A verdict
 returns early. Each Orca command is limited to the remaining budget and at most
@@ -136,6 +139,7 @@ returns early. Each Orca command is limited to the remaining budget and at most
 | Field | Meaning |
 | --- | --- |
 | `status` | `started`, `reported`, `rejected`, `stalled`, `failed`, `unknown` |
+| `mode` | `structured` for a structured (chat) worker, which gets only `reported`, `failed` or `unknown`; absent for a terminal worker |
 | `dispatchId`, `taskId`, `agent`, `model` | From Orca's `worker-show` |
 | `message` | With `rejected`: the agent's refusal, in its own words |
 | `detail` | One line: what was seen |

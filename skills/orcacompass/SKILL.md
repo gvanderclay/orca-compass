@@ -213,6 +213,16 @@ route without `--effort`.
      Report that verification timed out and continue normal Orca supervision.
      Do not repeatedly call `verify` to extend the startup verification budget.
 
+   A structured (chat) worker has no terminal, and the reply carries
+   `"mode": "structured"`. For these, `verify` follows only the worker's
+   lifecycle (tested on Orca 1.4.253): it returns `reported` or `failed`,
+   otherwise `unknown`. It cannot see a model refusal, so `unknown` does not
+   mean the model was accepted; when in doubt, read the transcript with
+   `orca orchestration worker-read --dispatch <dispatchId> --source auto --json`.
+   A structured `failed` carries no `tail` and may be a failed task, not a
+   failed start. Read the transcript, release the worker, and replace it or
+   exclude the agent only if the transcript shows the agent failing to start.
+
    Follow the `next` list it returns. Never start the replacement before the
    cleanup succeeded, and never stop a worker `verify` called `started`.
 

@@ -51,10 +51,50 @@ returns immediately when a verdict is available. `--wait` accepts 0–60 s;
 0 returns `unknown` immediately. After a timeout, report it and continue normal
 Orca supervision instead of repeating startup verification.
 
-`verify` reads worker state and records detected refusals in its local cache.
+`verify` reads worker state and records detected refusals in its local cache
+(terminal workers only).
 It returns the
 `cleanup` argv lists for the orchestrator to run: `worker-stop` then
 `worker-release`, or `worker-release` alone when the worker already exited.
+
+## Structured workers
+
+A structured (chat) worker has no terminal. When `worker-show --full` reports
+`startOptions.mode.mode` as `structured`, `verify` does not call `worker-read`.
+It reuses that first `worker-show` and polls `worker-show --full` every 1.5 s
+inside the same 60 s budget, following only how the worker ended. The preferred
+mode alone does not count, and a worker with an absent or unrecognized mode
+keeps the terminal behavior above. The verdict carries `"mode": "structured"`.
+
+| Verdict | Rule |
+| --- | --- |
+| `reported` | Every lifecycle field Orca returned says `succeeded` (`worker.state`, the projection's `outcome` and `stage.worker`) |
+| `failed` | Every one of those fields says `failed`. `cleanup` is `worker-release` alone. No `tail` |
+| `unknown` | Everything else: ready or live, `exited`, `stopped`, `abandoned`, `finished_unverified`, fields that disagree (for example `ready` or `stopped` beside an `outcome` of `failed`, or `failed` beside `finished_unverified`), a non-string field or a non-object `worker`, `projection` or `projection.stage`, a failed read, or no answer within `--wait` |
+
+Orca derives `stage.worker` from `worker.state` and `outcome` from the accepted
+worker report, else `worker.state`, so one lifecycle shows in all three. A
+missing or null field is skipped, and release metadata (`worker.stage`,
+`stage.detail`) is not read, because a settled worker is normally released.
+
+When the projection is `null`, `worker.state` alone decides. An ended worker
+(state `stopped` or `abandoned`, outcome `finished_unverified`, or liveness
+`exited`) with no explicit success or failure is `unknown`: it can be an intentional cancel, so it never
+implies the agent failed. A live worker is `unknown` too, because Orca exposes
+no signal that the agent accepted the model. `verify` therefore cannot detect a
+model refusal for a structured worker, never returns `rejected`, `started` or
+`stalled` for one, and never writes `rejected-models.json`. `next` points at
+`orca orchestration worker-read --dispatch <id> --source auto --json` to read
+the transcript.
+
+A structured `failed` can be a failed task as well as a failed start. `next`
+reads the transcript first, then releases the worker, and asks for a replacement
+and `--exclude-agent` only if the transcript shows the agent failing to start;
+for a failed task it tells the coordinator to keep the agent available and
+report the failure.
+
+Tested against Orca 1.4.253 with synthetic fixtures and live captures of structured
+workers; no minimum Orca version is established.
 
 ## Refusal phrases recognized
 
