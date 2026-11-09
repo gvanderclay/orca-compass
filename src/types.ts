@@ -297,4 +297,9 @@ export interface Config {
   excludeNoZdr: boolean;
   /** Route Cursor's `auto` in Light and Daily, ahead of named Cursor models. */
   cursorAuto: boolean;
+  /**
+   * Fork-only: `helper` routes Pi on an Orca that refuses `--model` for Pi; the coordinator starts it through
+   * orca-pi-chat. Absent: Pi waits for an Orca release that starts it on a chosen model.
+   */
+  piModelLaunch?: 'helper';
 }

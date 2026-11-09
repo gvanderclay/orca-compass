@@ -144,6 +144,11 @@ function merge(raw: unknown): Config {
   if (r.preferRiskLimit !== undefined) c.preferRiskLimit = num(r.preferRiskLimit, 'preferRiskLimit');
   if (r.banModels !== undefined) c.banModels = strings(r.banModels, 'banModels');
   if (r.lastResortAgents !== undefined) c.lastResortAgents = strings(r.lastResortAgents, 'lastResortAgents');
+  // Fork-only (gvanderclay/local-fixes): see src/routing/pi-helper.ts.
+  if (r.piModelLaunch !== undefined) {
+    if (r.piModelLaunch !== 'helper') throw new Invalid(`piModelLaunch must be "helper" (got ${JSON.stringify(r.piModelLaunch)})`);
+    c.piModelLaunch = 'helper';
+  }
   return c;
 }
 

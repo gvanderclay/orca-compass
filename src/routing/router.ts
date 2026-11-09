@@ -1,6 +1,6 @@
 import { DEMAND_EFFORT, snapEffort } from './effort.js';
 import { poolState, projectPool, rankHeadroom } from './pace.js';
-import { launchGateReason } from './orca-version.js';
+import { launchGateReasonFor, PI_HELPER_WARNING, piHelperMode, piHelperSkip } from './pi-helper.js';
 import type { Rejection } from './rejection.js';
 import { FAMILY_TIERS, isLadderVendor, knownModelVersion, modelFamily } from '../placements/tiers.js';
 import {
@@ -94,6 +94,7 @@ const CONFIDENCE_ORDER: Confidence[] = ['high', 'medium', 'low'];
  */
 export function route(req: RouteRequest, env: Environment, config: Config): Decision {
   const decision = selectRoute(req, env, config);
+  if (decision.route && piHelperMode(decision.route.agent, env.orcaVersion, config)) decision.warnings.push(PI_HELPER_WARNING);
   if (req.tierReason) {
     decision.tierReason = req.tierReason;
     decision.reasons.push(`task tier ${req.tier}: ${req.tierReason}`);
@@ -308,7 +309,7 @@ export function agentSkipReason(
   if (!d.installed) return 'not installed';
   if (d.signedOut) return d.note ?? 'not signed in';
   if (d.models.length === 0) return `no models${d.note ? `: ${d.note}` : ''}`;
-  return launchGateReason(agent, env.orcaVersion);
+  return launchGateReasonFor(agent, env.orcaVersion, config);
 }
 
 /** Orca's own switch for an agent; unknown when the setting could not be read. */
@@ -353,7 +354,7 @@ function collectCandidates(agents: PlacedAgent[], env: Environment, config: Conf
       // The table already holds the placement (built from every source); the route only reads it.
       const placed = model.placements;
       const rejected = rejectionOf(model, env.rejections);
-      const leftOut = banEntry(model, config.banModels) ? 'banned by you' : rejected ? rejectedText(rejected, env.now) : undefined;
+      const leftOut = banEntry(model, config.banModels) ? 'banned by you' : rejected ? rejectedText(rejected, env.now) : piHelperSkip(model, env.orcaVersion, config);
       if (leftOut) {
         const inTier = placed.some((c) => c.tier === tier);
         if (inTier && !skipped.some((s) => s.agent === model.agent && s.model === model.modelId)) {

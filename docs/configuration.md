@@ -80,6 +80,18 @@ cache; OrcaCompass writes it when it invokes that command during discovery.
 | `excludeNoZdr` | `false` | Exclude models marked no-ZDR (zero data retention). Relies on Cursor's `NO ZDR` labels only | by hand |
 | `cursorAuto` | `true` | Route Cursor `auto` in Light and Daily ahead of named Cursor models | by hand |
 
+#### Fork-only: `piModelLaunch`
+
+This key exists only in the `gvanderclay/local-fixes` fork, not in upstream
+OrcaCompass. `"piModelLaunch": "helper"` routes Pi on an Orca whose version is
+known and below the Pi launch minimum (today: every Orca), for a coordinator
+that starts the chosen model through the local `orca-pi-chat` helper instead of
+`worker-start`. Every Pi route then carries the warning `pi: launch through
+orca-pi-chat (this Orca refuses --model for pi); launchArgs are not runnable`,
+and Pi models with no effort level are skipped, since the helper needs one.
+An unknown Orca version keeps Pi out. Pi stays a last-resort agent unless
+`--agent pi` or a preference for the tier names it.
+
 ### Usage
 
 | Key | Default | Purpose |
