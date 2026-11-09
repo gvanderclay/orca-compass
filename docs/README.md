@@ -48,7 +48,7 @@ model.
 
 | Term | Meaning |
 | --- | --- |
-| **Agent** | A coding CLI Orca can launch as a worker: `claude`, `codex`, `cursor`, `grok`, `antigravity`, `opencode`, `muse` |
+| **Agent** | A coding CLI Orca can launch as a worker: `claude`, `codex`, `cursor`, `grok`, `antigravity`, `opencode`, `pi`, `muse` |
 | **Tier** | How capable a model the job needs: `light`, `daily`, `advanced`, `frontier` |
 | **Demand** | How much the job needs to think: `low`, `moderate`, `high`, `exceptional`. Separate from the tier |
 | **Effort** | The reasoning level passed to the agent: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` |
@@ -59,4 +59,4 @@ model.
 | **Preference (pin)** | Your favorite route for a tier; used when eligible, unblocked and under `preferRiskLimit` |
 | **Ban** | A model id or Models.dev family that is never routed |
 | **Rejection** | A model an agent refused at launch (found by `verify`); skipped for `rejectionTtlHours` |
-| **Last-resort agent** | An agent used only when nothing else can take the job (OpenCode by default) |
+| **Last-resort agent** | An agent used only when nothing else can take the job (OpenCode and Pi by default) |

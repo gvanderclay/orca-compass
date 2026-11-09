@@ -169,8 +169,9 @@ do not.
    `not enabled in Orca` (Orca's Settings → Agents),
    `not signed in or unavailable` (Orca reports the account `unavailable`),
    `not installed`, `not signed in` (the model listing asked for a login),
-   `no models`.
-2. **Last-resort agents** (`lastResortAgents`, OpenCode by default) are left out
+   `no models`, `Orca <version> cannot start Pi on a chosen model` (Pi, until
+   an Orca release supports it; also when the version cannot be read).
+2. **Last-resort agents** (`lastResortAgents`, OpenCode and Pi by default) are left out
    of the first pass; see below.
 3. **No-ZDR models** when `excludeNoZdr` is on (currently from Cursor's
    `NO ZDR` labels only).
@@ -196,6 +197,7 @@ Every model draws on named **usage pools** that Orca reports for its agent
 | Grok Build | `weekly` (credits), `monthly` (budget) |
 | Antigravity | per quota group, `Gemini Models` or `Claude and GPT models`: a 5-hour pool and a long pool; without groups (older Orca) `session` and `weekly` |
 | OpenCode | none: pay per use or local. Routes say how the model is paid for |
+| Pi | none: Pi's own provider sign-ins, whose limits Orca does not track. Routes say so |
 
 Pools are `session` (short) or `long` (weekly, monthly, bucket). Each pool has
 `usedPercent`, `windowMinutes` and `resetsAt`.
@@ -345,8 +347,9 @@ A preference for a tier also lifts a last-resort agent's status for that tier.
 
 ## Last-resort agents
 
-`lastResortAgents` (default `["opencode"]`) are agents whose use costs money
-per token or this machine's resources. Routing runs first without them, in the
+`lastResortAgents` (default `["opencode", "pi"]`) are agents whose use costs money
+per token or this machine's resources, or draws on sign-ins whose limits Orca
+does not track (Pi, possibly the same subscription as a blocked Claude or Codex). Routing runs first without them, in the
 requested tier and every lower tier. Only when that finds no `ok` route does it
 run again with them, and the result carries a warning:
 

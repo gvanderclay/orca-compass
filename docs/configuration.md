@@ -75,7 +75,7 @@ cache; OrcaCompass writes it when it invokes that command during discovery.
 | `pins` | `{}` | Preferred route per tier with optional `model`, e.g. `{ "daily": { "agent": "codex" } }`. An eligible, unblocked favorite wins unless it exceeds `preferRiskLimit` and an unblocked alternative has known usage within the limit | `prefer` |
 | `preferRiskLimit` | `100` | Projected usage percentage above which a within-limit alternative replaces the favorite. Retain the favorite when no unblocked alternative has known usage within this limit | `prefer --risk-limit` |
 | `banModels` | `[]` | Model ids or Models.dev families never routed | `ban`, `unban` |
-| `lastResortAgents` | `["opencode"]` | Agents used only when no other agent can take the job in any allowed tier (or instead of waiting). `--agent <id>` or a preference for the tier lifts it; `[]` makes them ordinary | by hand |
+| `lastResortAgents` | `["opencode", "pi"]` | Agents used only when no other agent can take the job in any allowed tier (or instead of waiting): OpenCode costs per token or local resources, and Orca tracks no limits for Pi's own provider sign-ins. `--agent <id>` or a preference for the tier lifts it; `[]` makes them ordinary | by hand |
 | `tierOverrides` | `{}` | Model id or family to a tier: `{ "gemma4:12b": "light", "grok": "daily" }`. Overrides other placement signals; also makes Cursor `auto` an ordinary candidate (`"auto": "daily"`) | by hand |
 | `excludeNoZdr` | `false` | Exclude models marked no-ZDR (zero data retention). Relies on Cursor's `NO ZDR` labels only | by hand |
 | `cursorAuto` | `true` | Route Cursor `auto` in Light and Daily ahead of named Cursor models | by hand |
@@ -154,6 +154,8 @@ commands do not gather it.
 | `~/.grok/models_cache.json`, then `grok models` | Grok Build models, efforts, default | At table build: file, then live |
 | `agy models` | Antigravity models (`id<TAB>label`) | At table build |
 | `opencode models` | OpenCode models (`provider/model`) | At table build |
+| Pi's newest entry in Orca's `agent-model-catalog.json` (internal, undocumented) | Pi models (`provider/id`) and their thinking levels | At table build, read as a file |
+| `orca --version` | Whether this Orca can start Pi on a chosen model | Every call; a failure keeps Pi out |
 | Orca's profile state (`profile-state.db` or `orca-data.json`), read-only | Which agents you enabled in Orca (`settings.disabledTuiAgents`) | Experimental; anything unexpected is `unknown` |
 | `orca orchestration worker-show` / `worker-read` | `verify` only | Read-only |
 

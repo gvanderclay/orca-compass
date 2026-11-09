@@ -149,12 +149,16 @@ route without `--effort`.
    repeated `--agent <id>` or `--exclude-agent <id>`. Use `--effort <e>` only
    for an effort the user asked for; `--no-downgrade` prevents fallback to a
    lower tier. Agent ids are `claude`, `codex`, `cursor`,
-   `grok`, `antigravity`, `opencode`, and `muse` (detected only, never routed: Orca has no
-   Muse model list). An unknown id adds a warning with a likely match
+   `grok`, `antigravity`, `opencode`, `pi`, and `muse` (detected only, never routed: Orca has no
+   Muse model list). Pi is routed only on an Orca release that starts it on a
+   chosen model; until then routes skip it with `Orca <version> cannot start
+   Pi on a chosen model`. An unknown id adds a warning with a likely match
    (`did you mean cursor?`); fix the id and route again.
    OpenCode is a last resort by default (API keys cost per token; local models
    take this machine): it is routed only when no other agent can take the job.
-   Pass `--agent opencode` only when the user asks for OpenCode. An OpenCode
+   Pass `--agent opencode` only when the user asks for OpenCode. Pi is a last
+   resort too (Orca does not track its provider sign-ins); pass `--agent pi`
+   only when the user asks for Pi. An OpenCode
    route needs `--worktree current` or an existing worktree; Orca refuses
    `--model` for OpenCode in a new worktree.
    If the user specifies an exact model, honor that choice directly; the CLI
