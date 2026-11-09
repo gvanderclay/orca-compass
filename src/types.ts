@@ -15,8 +15,11 @@ export type EffortPolicy = 'efficient' | 'balanced' | 'quality';
 export const EFFORT_POLICIES: readonly EffortPolicy[] = ['efficient', 'balanced', 'quality'];
 export type Confidence = 'high' | 'medium' | 'low';
 export type AgentId = string;
-/** Every agent OrcaCompass knows, in display order (Muse is detected only, never routed). */
-export const AGENT_IDS: readonly AgentId[] = ['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'muse'];
+/**
+ * Every agent OrcaCompass knows, in display order (Muse is detected only, never routed; Pi is routed only on an
+ * Orca release that starts it on a chosen model).
+ */
+export const AGENT_IDS: readonly AgentId[] = ['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'pi', 'muse'];
 
 export interface ModelMeta {
   id: string;
@@ -83,7 +86,7 @@ export interface LaunchModel {
   poolNames: string[];
   fast?: boolean;
   noZdr?: boolean;
-  /** How a model without a usage window is paid for, e.g. "pay per use through openrouter" (OpenCode). */
+  /** How a model without a usage window is paid for, e.g. "pay per use through openrouter" (OpenCode, Pi). */
   billing?: string;
   /** The provider's own one-line description of the model's place in its lineup, e.g. "For your toughest challenges". */
   lineup?: string;
@@ -152,6 +155,11 @@ export type OrcaAgents =
   | { known: true; disabled: AgentId[]; source: string }
   | { known: false; reason: string };
 
+/** The running Orca's version (`orca --version`), or why it could not be read. */
+export type OrcaVersion =
+  | { known: true; version: string }
+  | { known: false; reason: string };
+
 export interface Environment {
   now: number;
   /** Every agent with its models already placed (the placement table's rows). */
@@ -159,6 +167,8 @@ export interface Environment {
   usage: Record<AgentId, AgentUsage>;
   /** Absent or unknown: every installed agent counts as enabled in Orca. */
   orcaAgents?: OrcaAgents;
+  /** Read on every call; agents Orca can start on a chosen model only from some release on need it (Pi). */
+  orcaVersion?: OrcaVersion;
   /** When the placement table the discoveries come from was built. */
   placementsBuiltAt: number;
   catalogSource: DataSource;
@@ -266,7 +276,8 @@ export interface Config {
   banModels: string[];
   /**
    * Agents used only when no other agent can take the job in any allowed tier (OpenCode: API keys cost per
-   * token, local models take this machine). `--agent` or a preference for the tier lifts it for that route.
+   * token, local models take this machine; Pi: its own provider sign-ins, whose limits Orca does not track).
+   * `--agent` or a preference for the tier lifts it for that route.
    */
   lastResortAgents: AgentId[];
   tierOverrides: Record<string, Tier>; // keyed by model id or family

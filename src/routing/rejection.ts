@@ -17,8 +17,10 @@ export interface Rejection {
 //   grok         Couldn't set model 'grok-9-fake': Invalid params: "unknown model id".
 //   antigravity  invalid model selection (--model "gemini-9-fake" ...): model gemini-9-fake is not recognized as a known model ...
 //   opencode     Error: Model unavailable: openrouter/fake/nonexistent-9
+//   pi           Error: Model "anthropic/claude-opus-9-9" not found. Use --list-models to see available models.
+// Pi's warning `Model "x" not found for provider "p". Using custom model id.` is not a refusal: Pi keeps running.
 const REFUSAL =
-  /model is not supported|issue with the selected model|cannot use this model|couldn'?t set model|unknown model id|invalid model selection|not recognized as a known model|model unavailable/i;
+  /model is not supported|issue with the selected model|cannot use this model|couldn'?t set model|unknown model id|invalid model selection|not recognized as a known model|model unavailable|model "[^"]+" not found\. use --list-models/i;
 
 /**
  * The agent's line refusing `model`, if the output has one. The line must name the model, so a worker's

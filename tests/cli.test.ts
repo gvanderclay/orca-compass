@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readTextFile } from '../src/placements/agents/deps.js';
-import { fakeDeps, fixture, NOW, orcaDownRunner, runner } from './helpers/fakes.js';
+import { fakeDeps, fixture, NOW, ORCA_VERSION, orcaDownRunner, runner } from './helpers/fakes.js';
 import { MODEL_INDEX_URL, toRatings } from '../src/placements/sources/modelindex.js';
 import type { Runner } from '../src/system/run.js';
 import { main, type MainDeps } from '../src/cli.js';
@@ -274,13 +274,13 @@ describe('refresh', () => {
 describe('placement table in the CLI', () => {
   const HOUR = 3_600_000;
 
-  it('route runs only orca account list when the table is fresh and says when it was built', async () => {
+  it('route runs only orca account list and orca --version when the table is fresh and says when it was built', async () => {
     expect(await main(['status'], io, deps)).toBe(0);
     const calls: string[] = [];
     const run: Runner = async (cmd, args) => (calls.push(args[0]), runner(cmd, args));
     stdout = [];
     expect(await main(['route', '--tier', 'daily', '--json'], io, { ...deps, run, now: NOW + 60_000 })).toBe(0);
-    expect(calls).toEqual(['account']);
+    expect(calls).toEqual(['account', '--version']);
     expect(JSON.parse(out()).placementsBuiltAt).toBe(NOW);
   });
 
@@ -316,11 +316,11 @@ describe('placement table in the CLI', () => {
 
   it('refresh rebuilds the table', async () => {
     expect(await main(['refresh'], io, deps)).toBe(0);
-    expect(out()).toMatch(/\nplacements: \d+ models across 7 agents \(built now\)$/);
+    expect(out()).toMatch(/\nplacements: \d+ models across 8 agents \(built now\)$/);
     stdout = [];
     expect(await main(['refresh', '--json'], io, deps)).toBe(0);
     const j = JSON.parse(out());
-    expect(j.placements).toMatchObject({ builtAt: NOW, agents: 7 });
+    expect(j.placements).toMatchObject({ builtAt: NOW, agents: 8 });
     expect(j.placements.models).toBeGreaterThan(0);
   });
 
@@ -360,6 +360,30 @@ describe('Orca agent switches', () => {
   });
 });
 
+describe('Pi before Orca can start it on a chosen model', () => {
+  const piDeps: MainDeps = {
+    ...deps,
+    readFile: (p) => (p.endsWith('agent-model-catalog.json') ? fixture('orca-pi-catalog.json') : deps.readFile!(p)),
+  };
+  const GATE = `Orca ${ORCA_VERSION} cannot start Pi on a chosen model`;
+
+  it('route, status and agents list Pi with its models and the same reason for not using it', async () => {
+    expect(await main(['route', '--tier', 'daily', '--agent', 'pi', '--json'], io, piDeps)).toBe(0);
+    const d = JSON.parse(out());
+    expect(d.status).toBe('none');
+    expect(d.skipped).toContainEqual({ agent: 'pi', reason: GATE });
+    stdout = [];
+    expect(await main(['status', '--json'], io, piDeps)).toBe(0);
+    const pi = JSON.parse(out()).agents.find((a: { agent: string }) => a.agent === 'pi');
+    expect(pi).toMatchObject({ installed: true, skipped: GATE, usage: null });
+    expect(pi.models).toBeGreaterThan(0);
+    expect(pi.note).toMatch(/^models from Orca's Pi catalog \(/);
+    stdout = [];
+    expect(await main(['agents', '--json'], io, piDeps)).toBe(0);
+    expect(JSON.parse(out()).agents.find((a: { agent: string }) => a.agent === 'pi')).toMatchObject({ used: false, verdict: `not used: ${GATE}` });
+  });
+});
+
 describe('agents', () => {
   it('lists every known agent with installed, Orca switch, usage, choice and verdict', async () => {
     writeFileSync(configPath(), '{"denyAgents":["codex"]}');
@@ -368,7 +392,7 @@ describe('agents', () => {
     const a = JSON.parse(out());
     expect(a.orcaAgents).toEqual({ known: true, disabled: ['cursor'], source: '/fake/db' });
     expect(a.configPath).toBe(configPath());
-    expect(a.agents.map((x: { agent: string }) => x.agent)).toEqual(['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'muse']);
+    expect(a.agents.map((x: { agent: string }) => x.agent)).toEqual(['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'pi', 'muse']);
     const row = (agent: string) => a.agents.find((x: { agent: string }) => x.agent === agent);
     expect(row('claude')).toEqual({ agent: 'claude', installed: true, enabledInOrca: 'yes', orcaUsage: 'ok', chosen: true, used: true, verdict: 'used' });
     expect(row('codex')).toMatchObject({ chosen: false, used: false, verdict: 'not used: excluded by config' });
@@ -391,12 +415,12 @@ describe('agents', () => {
     expect(await main(['agents', 'disable', 'grok', 'Cursor'], io, deps)).toBe(0);
     expect(JSON.parse(readFileSync(configPath(), 'utf8'))).toEqual({ cursorAuto: false, denyAgents: ['grok', 'cursor'] });
     expect(out()).toMatch(/^wrote .*config\.json$/m);
-    expect(out()).toMatch(/^chosen: claude, codex, antigravity, opencode, muse$/m);
+    expect(out()).toMatch(/^chosen: claude, codex, antigravity, opencode, pi, muse$/m);
     expect(out()).toMatch(/^not chosen: cursor, grok$/m);
 
     stdout = [];
     await main(['agents', 'enable', 'cursor', '--json'], io, deps);
-    expect(JSON.parse(out())).toMatchObject({ configPath: configPath(), denyAgents: ['grok'], chosen: ['claude', 'codex', 'cursor', 'antigravity', 'opencode', 'muse'] });
+    expect(JSON.parse(out())).toMatchObject({ configPath: configPath(), denyAgents: ['grok'], chosen: ['claude', 'codex', 'cursor', 'antigravity', 'opencode', 'pi', 'muse'] });
 
     await main(['agents', 'only', 'claude', 'codex'], io, deps);
     expect(JSON.parse(readFileSync(configPath(), 'utf8'))).toEqual({ cursorAuto: false, denyAgents: ['grok'], allowAgents: ['claude', 'codex'] });
@@ -411,7 +435,7 @@ describe('agents', () => {
   it('rejects unknown agent ids and missing ids without touching the config', async () => {
     writeFileSync(configPath(), '{"denyAgents":["codex"]}');
     expect(await main(['agents', 'disable', 'gpt'], io, deps)).toBe(1);
-    expect(err()).toMatch(/unknown agent "gpt" \(known: claude, codex, cursor, grok, antigravity, opencode, muse\)/);
+    expect(err()).toMatch(/unknown agent "gpt" \(known: claude, codex, cursor, grok, antigravity, opencode, pi, muse\)/);
     expect(await main(['agents', 'enable', 'gemini'], io, deps)).toBe(1);
     expect(err()).toMatch(/unknown agent "gemini"/);
     expect(await main(['agents', 'only'], io, deps)).toBe(1);

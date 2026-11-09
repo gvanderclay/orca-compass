@@ -113,12 +113,12 @@ describe('loadPlacements', () => {
 });
 
 describe('gather', () => {
-  it('runs only orca account list when the table is fresh', async () => {
+  it('runs only orca account list and orca --version when the table is fresh', async () => {
     await loadPlacements(DEFAULT_CONFIG, fakeDeps);
     const calls: string[] = [];
     const { env, rebuilt } = await gather(DEFAULT_CONFIG, { ...fakeDeps, run: recording(calls), now: NOW + HOUR });
     expect(rebuilt).toBeUndefined();
-    expect(calls).toEqual(['account']);
+    expect(calls).toEqual(['account', '--version']);
     expect(env.placementsBuiltAt).toBe(NOW);
     expect(env.now).toBe(NOW + HOUR);
   });

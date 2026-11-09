@@ -4,6 +4,7 @@ import type { Readable, Writable } from 'node:stream';
 import {
   applyAgentChoice, DEFAULT_CONFIG, isChosen, parsePercent, setAgentChoice, setBans, setPin, setPreferRiskLimit, updateConfigFile, type AgentChoice,
 } from './config.js';
+import { launchGateReason } from './routing/orca-version.js';
 import { agentNotFamily, agentSkipReason, banMatches, enabledInOrca, launchIds, route } from './routing/router.js';
 import { TIERS, type AgentId, type Config, type Effort, type Environment, type Preference, type Risk, type Tier } from './types.js';
 import { configPath } from './paths.js';
@@ -68,7 +69,8 @@ function agentRows(env: Environment, config: Config): AgentRow[] {
       orcaUsage: env.usage[d.agent]?.status ?? 'unknown',
       models: d.models.length,
       chosen,
-      preselected: d.installed && d.models.length > 0 && orca !== 'no' && chosen,
+      // An agent this Orca cannot start on a chosen model (Pi before its release) is offered, not preselected.
+      preselected: d.installed && d.models.length > 0 && orca !== 'no' && chosen && !launchGateReason(d.agent, env.orcaVersion),
       verdict: reason === undefined ? 'used' : `not used: ${reason}`,
     };
   });
@@ -249,6 +251,10 @@ export async function setupWizard(term: Terminal, env: Environment, config: Conf
       const row = rows.find((r) => r.agent === agent)!;
       if (!row.installed) say(`  note: ${agent} is not installed; it is used once it is installed.`);
       else if (row.enabledInOrca === 'no') say(`  note: ${agent} is switched off in Orca; switch it on in Orca's settings (Agents) to use it.`);
+      else {
+        const gate = launchGateReason(agent, env.orcaVersion);
+        if (gate) say(`  note: ${gate}; ${agent} is used once Orca can.`);
+      }
     }
     const working: Config = { ...config, ...choice };
     if (!choice.allowAgents) delete working.allowAgents;
