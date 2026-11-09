@@ -87,6 +87,34 @@ describe('fake machine', () => {
   });
 });
 
+describe('Pi before Orca can start it on a chosen model', () => {
+  const piDeps: MainDeps = {
+    ...deps,
+    run: async (cmd, args) => (args[0] === '--version' ? { code: 0, stdout: '1.4.0\n', stderr: '' } : runner(cmd, args)),
+    readFile: (p) => (p.endsWith('agent-model-catalog.json') ? fixture('orca-pi-catalog.json') : deps.readFile!(p)),
+  };
+  const GATE = 'Orca 1.4.0 cannot start Pi on a chosen model';
+
+  it('setup --json lists Pi with its models but does not preselect it', async () => {
+    expect(await main(['setup', '--json'], io, piDeps)).toBe(0);
+    const pi = JSON.parse(stdout.join('\n')).agents.find((a: { agent: string }) => a.agent === 'pi');
+    expect(pi).toMatchObject({ installed: true, enabledInOrca: 'yes', chosen: true, preselected: false, verdict: `not used: ${GATE}` });
+    expect(pi.models).toBeGreaterThan(0);
+  });
+
+  it('the wizard leaves Pi out by default and says why when it is picked', async () => {
+    const first = await wizard(['', '', '', ''], piDeps);
+    expect(first.code).toBe(0);
+    expect(first.screen).toMatch(/Use which agents\? Numbers or names, separated by commas \[claude, codex\]: /);
+    expect(first.screen).toMatch(new RegExp(`pi \\(${escape(GATE)}\\)`));
+    expect(config()).toEqual({});
+    const picked = await wizard(['claude, pi', '', '', ''], piDeps);
+    expect(picked.code).toBe(0);
+    expect(picked.screen).toContain(`note: ${GATE}; pi is used once Orca can.`);
+    expect(config()).toEqual({ denyAgents: ['codex'] });
+  });
+});
+
 describe('setup --json', () => {
   it('prints one document with agents, tiers, families and the current config', async () => {
     writeFileSync(configPath(), JSON.stringify(CONFIGURED));
@@ -97,7 +125,7 @@ describe('setup --json', () => {
     expect(j.orcaAgents).toEqual({ known: true, disabled: ['cursor'], source: '/fake/orca/profile-state.db' });
     expect(j.config).toEqual({ allowAgents: null, ...CONFIGURED });
 
-    expect(j.agents.map((a: { agent: string }) => a.agent)).toEqual(['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'muse']);
+    expect(j.agents.map((a: { agent: string }) => a.agent)).toEqual(['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'pi', 'muse']);
     for (const a of j.agents) {
       expect(a).toEqual({
         agent: expect.any(String),
@@ -260,9 +288,9 @@ describe('setup wizard', () => {
 
   it('asks again after a bad answer, notes an agent Orca has switched off, refuses an agent as a ban, and clears', async () => {
     writeFileSync(configPath(), JSON.stringify(CONFIGURED));
-    const { code, screen } = await wizard(['8', 'gemini', 'claude cursor', 'maybe', 'y', '0', '', '', 'codex', '99', 'none', 'y']);
+    const { code, screen } = await wizard(['9', 'gemini', 'claude cursor', 'maybe', 'y', '0', '', '', 'codex', '99', 'none', 'y']);
     expect(code).toBe(0);
-    expect(screen).toMatch(/"8" is not one of the agents above\./);
+    expect(screen).toMatch(/"9" is not one of the agents above\./);
     expect(screen).toMatch(/"gemini" is not one of the agents above\./);
     expect(screen).toMatch(/note: cursor is switched off in Orca; switch it on in Orca's settings \(Agents\) to use it\./);
     expect(screen).toMatch(/Please answer y or n\./);
@@ -273,7 +301,7 @@ describe('setup wizard', () => {
   });
 
   it('lets Enter through when no agent can be used', async () => {
-    const allOff: MainDeps = { readOrcaAgents: async () => ({ known: true, disabled: ['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'muse'], source: '/fake/db' }) };
+    const allOff: MainDeps = { readOrcaAgents: async () => ({ known: true, disabled: ['claude', 'codex', 'cursor', 'grok', 'antigravity', 'opencode', 'pi', 'muse'], source: '/fake/db' }) };
     const { code, screen } = await wizard(['', '', '', ''], allOff);
     expect(code).toBe(0);
     expect(screen).toMatch(/separated by commas \[none\]: /);

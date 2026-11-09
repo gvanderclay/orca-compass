@@ -4,7 +4,8 @@ import type { Runner } from '../../src/system/run.js';
 import type { GatherDeps } from '../../src/routing/environment.js';
 
 // A fake machine for CLI, build and gather tests: Claude from a fixture catalog, Codex from its fixture
-// cache, Cursor from a fixture listing, Grok and Antigravity absent, Orca usage from a fixture.
+// cache, Cursor from a fixture listing, Grok and Antigravity absent, Orca usage from a fixture. Pi is found
+// but Orca's catalog is hidden, so it has no models.
 
 export const fixture = (name: string): string => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), 'utf8');
 export const orcaFixture = fixture('orca-account-list.json');
@@ -12,12 +13,15 @@ export const cursorFixture = fixture('cursor-list-models.txt');
 export const codexCache = fixture('codex-models-cache.json');
 
 export const NOW = 1793232000000;
+/** A synthetic Orca release that predates Pi launch support. */
+export const ORCA_VERSION = '1.4.0';
 
 /** discoverCursor runs the resolved executable path, so dispatch on args, not the command name. */
 export const fakeRunner =
   (orca: () => Awaited<ReturnType<Runner>>): Runner =>
   async (_cmd, args) => {
     if (args[0] === 'account') return orca();
+    if (args[0] === '--version') return { code: 0, stdout: `${ORCA_VERSION}\n`, stderr: '' };
     if (args[0] === 'models') return { code: 0, stdout: cursorFixture, stderr: '' };
     return { code: 1, stdout: '', stderr: `unexpected command: ${args.join(' ')}` };
   };

@@ -3,21 +3,23 @@ import { buildPlacements, installedAgents } from '../placements/build.js';
 import { readTable, staleness, type Staleness } from '../placements/table.js';
 import { cacheDir } from '../paths.js';
 import { findExecutable, runCommand } from '../system/run.js';
-import type { Config, Environment, OrcaAgents, PlacementTable } from '../types.js';
+import type { Config, Environment, OrcaAgents, OrcaVersion, PlacementTable } from '../types.js';
 import { VERSION } from '../version.js';
 import { readOrcaAgents } from './orca-settings.js';
 import { readOrcaUsage } from './orca-usage.js';
+import { readOrcaVersion } from './orca-version.js';
 import { activeRejections } from './rejection.js';
 import { readRejections } from './rejections.js';
 
 // Part 2 of OrcaCompass: the placement table (rebuilt only when stale) plus what changes between
-// calls: Orca's usage, Orca's agent switches, and the models agents refused at launch.
+// calls: Orca's usage, Orca's agent switches, Orca's version, and the models agents refused at launch.
 
 export type GatherDeps = Partial<AgentDeps & {
   fetchImpl: typeof fetch;
   /** Rebuild the table and refetch the metadata sources whatever their age. */
   refresh: boolean;
   readOrcaAgents: () => Promise<OrcaAgents>;
+  readOrcaVersion: () => Promise<OrcaVersion>;
   version: string;
 }>;
 
@@ -48,10 +50,11 @@ export async function loadPlacements(config: Config, deps: GatherDeps = {}): Pro
 export async function gather(config: Config, deps: GatherDeps = {}): Promise<Gathered> {
   const now = deps.now ?? Date.now();
   const run = deps.run ?? runCommand;
-  const [placements, usage, orcaAgents] = await Promise.all([
+  const [placements, usage, orcaAgents, orcaVersion] = await Promise.all([
     loadPlacements(config, { ...deps, now }),
     readOrcaUsage(run),
     (deps.readOrcaAgents ?? readOrcaAgents)(),
+    deps.readOrcaVersion ? deps.readOrcaVersion() : readOrcaVersion(run),
   ]);
   const { table } = placements;
   const rejections = activeRejections(readRejections(deps.readFile ?? readTextFile, deps.cacheDir ?? cacheDir()), now, config.rejectionTtlHours);
@@ -60,6 +63,7 @@ export async function gather(config: Config, deps: GatherDeps = {}): Promise<Gat
     discoveries: table.agents,
     usage,
     orcaAgents,
+    orcaVersion,
     placementsBuiltAt: table.builtAt,
     catalogSource: table.sources.catalog.source,
     ...(table.sources.scores ? { scoreSource: table.sources.scores.source } : {}),

@@ -10,6 +10,7 @@ import { listDirectory, readTextFile, type AgentDeps, type Locator } from './age
 import { discoverGrok, locateGrok } from './agents/grok.js';
 import { discoverMuse, locateMuse } from './agents/muse.js';
 import { discoverOpencode, locateOpencode } from './agents/opencode.js';
+import { discoverPi, locatePi } from './agents/pi.js';
 import { loadRatings } from './sources/modelindex.js';
 import { loadCatalog } from './sources/modelsdev.js';
 import { builtWith, PLACEMENTS_SCHEMA, writeTable } from './table.js';
@@ -25,6 +26,7 @@ export const AGENTS: Record<AgentId, { locate: (deps: Locator) => string | undef
   grok: { locate: locateGrok, discover: discoverGrok },
   antigravity: { locate: locateAntigravity, discover: discoverAntigravity },
   opencode: { locate: locateOpencode, discover: discoverOpencode },
+  pi: { locate: locatePi, discover: discoverPi },
   muse: { locate: locateMuse, discover: discoverMuse },
 };
 

@@ -49,7 +49,7 @@ describe('DEFAULT_CONFIG', () => {
       cursorAuto: true,
       preferRiskLimit: 100,
       banModels: [],
-      lastResortAgents: ['opencode'],
+      lastResortAgents: ['opencode', 'pi'],
     });
   });
 });

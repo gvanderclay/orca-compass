@@ -20,7 +20,7 @@ export const DEFAULT_CONFIG: Config = {
   cursorAuto: true,
   preferRiskLimit: 100,
   banModels: [],
-  lastResortAgents: ['opencode'],
+  lastResortAgents: ['opencode', 'pi'],
 };
 
 /** Message always starts with the config file path. */

@@ -37,6 +37,38 @@ export function fromOrcaCatalog(text: string | undefined, agent: string): RawMod
     }));
 }
 
+/**
+ * The agent's newest catalog entry, by the time Orca configured it (`configured.at`, else `discovered.at`); among
+ * entries without either, or with equal times, the later one in the file. Orca keeps one entry per agent
+ * configuration (fingerprint), so an agent such as Pi can have several.
+ */
+export function newestOrcaCatalogEntry(text: string | undefined, agent: string): { models: RawModel[]; at?: number } | undefined {
+  const entries = parseJson(text)?.entries;
+  if (!Array.isArray(entries)) return undefined;
+  const time = (e: any): number | undefined => {
+    const at = e?.configured?.at ?? e?.discovered?.at;
+    return typeof at === 'number' && Number.isFinite(at) ? at : undefined;
+  };
+  let newest: any;
+  for (const e of entries) {
+    if (e?.agent !== agent || !Array.isArray(e?.discovered?.models)) continue;
+    if (newest === undefined || (time(e) ?? -Infinity) >= (time(newest) ?? -Infinity)) newest = e;
+  }
+  if (newest === undefined) return undefined;
+  const at = time(newest);
+  return { models: toRawModels(newest.discovered.models), ...(at !== undefined ? { at } : {}) };
+}
+
+function toRawModels(models: any[]): RawModel[] {
+  return models
+    .filter((m) => typeof m?.id === 'string')
+    .map((m) => ({
+      id: typeof m.resolvedModel === 'string' ? m.resolvedModel : m.id,
+      efforts: (Array.isArray(m.efforts) ? m.efforts : []).map((e: { value?: unknown }) => String(e?.value)),
+      ...description(m.description),
+    }));
+}
+
 /** The catalog sits in Orca's userData folder; a Windows machine without APPDATA gets the usual location. */
 export function orcaCatalogPath(env: NodeJS.ProcessEnv): string {
   const home = homeDir(env);

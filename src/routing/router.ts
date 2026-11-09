@@ -1,5 +1,6 @@
 import { DEMAND_EFFORT, snapEffort } from './effort.js';
 import { poolState, projectPool, rankHeadroom } from './pace.js';
+import { launchGateReason } from './orca-version.js';
 import type { Rejection } from './rejection.js';
 import { FAMILY_TIERS, isLadderVendor, knownModelVersion, modelFamily } from '../placements/tiers.js';
 import {
@@ -289,8 +290,8 @@ function eligibleAgents(req: RouteRequest, env: Environment, config: Config, ski
 
 /**
  * Why an agent is not used, strongest reason first: the user's choice (config, then request), Orca's
- * "not enabled", Orca's "unavailable", not installed, signed out of its model list, no models. Undefined
- * when the agent is used.
+ * "not enabled", Orca's "unavailable", not installed, signed out of its model list, no models, and an Orca
+ * release that cannot start the agent on a chosen model (Pi). Undefined when the agent is used.
  */
 export function agentSkipReason(
   d: PlacedAgent,
@@ -307,7 +308,7 @@ export function agentSkipReason(
   if (!d.installed) return 'not installed';
   if (d.signedOut) return d.note ?? 'not signed in';
   if (d.models.length === 0) return `no models${d.note ? `: ${d.note}` : ''}`;
-  return undefined;
+  return launchGateReason(agent, env.orcaVersion);
 }
 
 /** Orca's own switch for an agent; unknown when the setting could not be read. */

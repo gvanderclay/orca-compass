@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "agent": "codex",
+      "discovered": { "models": [{ "id": "gpt-6.1-sol", "efforts": [{ "value": "medium" }] }], "origin": "probe", "at": 1793200000000 }
+    },
+    {
+      "agent": "pi",
+      "fingerprint": "synthetic-newer",
+      "configured": { "modelId": "anthropic/claude-opus-5-5", "effort": "medium", "at": 1793220000000 },
+      "live": null,
+      "discovered": {
+        "origin": "probe",
+        "at": 1793220000000,
+        "models": [
+          { "id": "anthropic/claude-haiku-5-5", "label": "Claude Haiku 5.5", "efforts": [{ "value": "off" }, { "value": "low" }, { "value": "medium" }, { "value": "high" }] },
+          { "id": "anthropic/claude-opus-5-5", "label": "Claude Opus 5.5", "efforts": [{ "value": "low" }, { "value": "medium" }, { "value": "high" }, { "value": "xhigh" }, { "value": "max" }] },
+          { "id": "openrouter/anthropic/claude-opus-5.5", "label": "Claude Opus 5.5", "efforts": [{ "value": "low" }, { "value": "high" }] },
+          { "id": "anthropic/claude-sonnet-5-5:high", "label": "Claude Sonnet 5.5 (high)", "efforts": [{ "value": "high" }] },
+          { "id": "openai/gpt-6.1-sol", "label": "GPT-6.1 Sol", "efforts": [{ "value": "low" }, { "value": "medium" }, { "value": "high" }, { "value": "xhigh" }, { "value": "max" }] },
+          { "id": "openrouter/cohere/north-mini-code:free", "label": "North Mini Code", "efforts": [{ "value": "minimal" }, { "value": "low" }, { "value": "medium" }] },
+          { "id": "example/snap-high", "label": "Snap High", "efforts": [{ "value": "off" }, { "value": "high" }] },
+          { "id": "example/off-only", "label": "Off Only", "efforts": [{ "value": "off" }] },
+          { "id": "ollama/gemma4:12b", "label": "Gemma 4 12B", "efforts": [] },
+          { "id": "no-provider", "efforts": [] },
+          { "label": "no id" }
+        ]
+      }
+    },
+    {
+      "agent": "pi",
+      "fingerprint": "synthetic-older",
+      "configured": { "modelId": "anthropic/claude-opus-5", "effort": "high", "at": 1793010000000 },
+      "live": null,
+      "discovered": {
+        "origin": "probe",
+        "at": 1793010000000,
+        "models": [{ "id": "anthropic/claude-opus-5", "efforts": [{ "value": "high" }] }]
+      }
+    },
+    { "agent": "pi", "fingerprint": "synthetic-malformed", "configured": { "at": 1793230000000 }, "discovered": null }
+  ]
+}

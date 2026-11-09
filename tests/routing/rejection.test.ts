@@ -9,6 +9,8 @@ const SEEN = {
   cursor: ['Cannot use this model: claude-opus-9-9. Available models: auto, gpt-5.3-codex-low, gpt-5.3-codex', 'claude-opus-9-9'],
   grok: ['Error: Couldn\'t set model \'grok-9-fake\': Invalid params: "unknown model id". Run \'grok models\' to see available models.', 'grok-9-fake'],
   agy: ['Error: invalid model selection (--model "gemini-9-fake" --effort ""): model gemini-9-fake is not recognized as a known model or custom model in settings', 'gemini-9-fake'],
+  // Pi 1.5.0's resolver error for an unknown --model (synthetic id).
+  pi: ['Error: Model "anthropic/claude-opus-9-9" not found. Use --list-models to see available models.', 'anthropic/claude-opus-9-9'],
 } as const;
 
 describe('findRejection', () => {
@@ -23,6 +25,7 @@ describe('findRejection', () => {
     expect(findRejection(SEEN.agy[1], [SEEN.agy[0]])).toMatch(/^invalid model selection/);
     expect(findRejection('openrouter/fake/nonexistent-9', ['Error: Model unavailable: openrouter/fake/nonexistent-9']))
       .toBe('Model unavailable: openrouter/fake/nonexistent-9');
+    expect(findRejection(SEEN.pi[1], [SEEN.pi[0]])).toBe('Model "anthropic/claude-opus-9-9" not found. Use --list-models to see available models.');
   });
 
   it('needs the line to name the routed model', () => {
@@ -33,6 +36,9 @@ describe('findRejection', () => {
   it('ignores the agents\' warnings about models they do not know but still run', () => {
     expect(findRejection('claude-opus-5-5', ['warning: Model metadata for `claude-opus-5-5` not found. Defaulting to fallback metadata'])).toBeUndefined();
     expect(findRejection('gpt-6-terra', ['Claude Code doesn\'t recognize the model "gpt-6-terra", so it assumes a context window of 200k tokens.'])).toBeUndefined();
+    // Pi keeps running with an unknown id of a known provider; the API reports any failure later.
+    expect(findRejection('anthropic/claude-opus-9-9', ['Warning: Model "anthropic/claude-opus-9-9" not found for provider "anthropic". Using custom model id.'])).toBeUndefined();
+    expect(findRejection('claude-opus-9-9', ['Model "claude-opus-9-9" not found'])).toBeUndefined();
   });
 
   it('finds a refusal whose model id wrapped onto the next row', () => {

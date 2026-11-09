@@ -10,7 +10,8 @@ import { readTextFile, type AgentDeps } from '../../../src/placements/agents/dep
 import { discoverGrok, parseGrokCache, parseGrokModels } from '../../../src/placements/agents/grok.js';
 import { discoverMuse } from '../../../src/placements/agents/muse.js';
 import { discoverOpencode, parseOpencodeModels, toOpencodeModels } from '../../../src/placements/agents/opencode.js';
-import { orcaCatalogPath } from '../../../src/placements/agents/orca-catalog.js';
+import { newestOrcaCatalogEntry, orcaCatalogPath } from '../../../src/placements/agents/orca-catalog.js';
+import { discoverPi, hasThinkingSuffix, toPiModels } from '../../../src/placements/agents/pi.js';
 import type { Runner } from '../../../src/system/run.js';
 import type { Effort, ModelIndex, ModelMeta } from '../../../src/types.js';
 
@@ -18,6 +19,8 @@ const fixture = (name: string) => readFileSync(new URL(`../../fixtures/${name}`,
 const cursorFixture = fixture('cursor-list-models.txt');
 const codexCache = fixture('codex-models-cache.json');
 const orcaCatalog = fixture('orca-agent-model-catalog.json');
+// Synthetic Pi entries in Orca's catalog shape: a newer and an older configuration, and a malformed one.
+const piCatalog = fixture('orca-pi-catalog.json');
 // Public model-list formats for Grok and Antigravity, without account details.
 const grokFixture = fixture('grok-models.txt');
 const agyFixture = fixture('agy-models.txt');
@@ -687,5 +690,84 @@ describe('discoverOpencode', () => {
     expect(await discoverOpencode(deps({ find: () => undefined }))).toEqual({ agent: 'opencode', installed: false, models: [], note: 'opencode not found' });
     const failing: Runner = async () => ({ code: 1, stdout: '', stderr: 'connection refused' });
     expect(await discoverOpencode(deps({ run: failing }))).toMatchObject({ installed: true, models: [], note: 'opencode models failed: connection refused' });
+  });
+});
+
+describe('discoverPi', () => {
+  const PI_AT = 1793220000000;
+
+  it('reads the newest Pi entry of Orca\'s catalog and maps provider/id selectors to Models.dev', async () => {
+    const reads: string[] = [];
+    const calls: { cmd: string; args: string[] }[] = [];
+    const found: string[] = [];
+    const d = await discoverPi(deps({
+      run: fakeRun('', calls),
+      find: (name) => (found.push(name), '/home/u/.local/bin/pi'),
+      readFile: fixtureFiles({ orcaCatalog: piCatalog }, reads),
+    }));
+    expect(found).toEqual(['pi']);
+    // No pi --list-models: Orca's catalog is the only source.
+    expect(calls).toEqual([]);
+    expect(reads).toEqual([orcaCatalogPath(deps({}).env)]);
+    expect(d.installed).toBe(true);
+    expect(d.models.map((m) => [m.modelId, m.launch.kind === 'flag' ? m.launch.model : '', m.efforts])).toEqual([
+      ['claude-haiku-5-5', 'anthropic/claude-haiku-5-5', ['low', 'medium', 'high']],
+      ['claude-opus-5-5', 'anthropic/claude-opus-5-5', ['low', 'medium', 'high', 'xhigh', 'max']],
+      ['gpt-6.1-sol', 'openai/gpt-6.1-sol', ['low', 'medium', 'high', 'xhigh', 'max']],
+      ['cohere/north-mini-code', 'openrouter/cohere/north-mini-code:free', ['minimal', 'low', 'medium']],
+      ['snap-high', 'example/snap-high', ['high']],
+      ['off-only', 'example/off-only', []],
+      ['gemma4:12b', 'ollama/gemma4:12b', []],
+    ]);
+    const opus = d.models.find((m) => m.modelId === 'claude-opus-5-5')!;
+    expect(opus).toMatchObject({
+      agent: 'pi', meta: { family: 'claude-opus' }, effortSource: 'orca', poolNames: [],
+      billing: 'through Pi\'s own anthropic sign-in; Orca does not track its limits',
+    });
+    expect(d.models.find((m) => m.modelId === 'gemma4:12b')!.billing).toBe('runs on this machine (ollama) through Pi');
+    expect(d.note).toBe(
+      `models from Orca's Pi catalog (${orcaCatalogPath(deps({}).env)}, configured ${new Date(PI_AT).toISOString()}); kept once: claude-opus-5-5 also via openrouter`,
+    );
+  });
+
+  it('skips only ids whose last :segment is a Pi thinking level', () => {
+    expect(hasThinkingSuffix('anthropic/claude-sonnet-5-5:high')).toBe(true);
+    expect(hasThinkingSuffix('example/x:off')).toBe(true);
+    expect(hasThinkingSuffix('openrouter/cohere/north-mini-code:free')).toBe(false);
+    expect(hasThinkingSuffix('ollama/gemma4:12b')).toBe(false);
+    expect(hasThinkingSuffix('anthropic/claude-opus-5-5')).toBe(false);
+  });
+
+  it('keeps each model once: on this machine, then free, then paid, then by provider name', () => {
+    const raw = (id: string) => ({ id, efforts: ['high'] });
+    const { models, alsoVia } = toPiModels(
+      [raw('zeta/claude-opus-5-5'), raw('openrouter/anthropic/claude-opus-5.5'), raw('anthropic/claude-opus-5-5'), raw('ollama/claude-opus-5-5')],
+      { index },
+    );
+    expect(models.map((m) => m.launch.kind === 'flag' && m.launch.model)).toEqual(['ollama/claude-opus-5-5']);
+    expect(alsoVia.get('claude-opus-5-5')).toEqual(['anthropic', 'openrouter', 'zeta']);
+    const paid = toPiModels([raw('zeta/claude-opus-5-5'), raw('anthropic/claude-opus-5-5')], { index });
+    expect(paid.models.map((m) => m.launch.kind === 'flag' && m.launch.model)).toEqual(['anthropic/claude-opus-5-5']);
+  });
+
+  it('chooses the newest Pi entry by time, not file order, and ignores malformed entries', () => {
+    const doc = JSON.parse(piCatalog);
+    expect(newestOrcaCatalogEntry(piCatalog, 'pi')).toMatchObject({ at: PI_AT });
+    const reversed = JSON.stringify({ ...doc, entries: [...doc.entries].reverse() });
+    expect(newestOrcaCatalogEntry(reversed, 'pi')?.at).toBe(PI_AT);
+    // Without times, the later entry in the file wins.
+    const untimed = JSON.stringify({ entries: doc.entries.filter((e: { agent: string }) => e.agent === 'pi').map(({ configured, ...e }: { configured?: unknown; discovered?: { at?: number } }) => ({ ...e, discovered: e.discovered && { ...e.discovered, at: undefined } })) });
+    expect(newestOrcaCatalogEntry(untimed, 'pi')?.models.map((m) => m.id)).toEqual(['anthropic/claude-opus-5']);
+    expect(newestOrcaCatalogEntry('not json', 'pi')).toBeUndefined();
+    expect(newestOrcaCatalogEntry(piCatalog, 'muse')).toBeUndefined();
+  });
+
+  it('reports a missing pi, or no Pi entry in Orca\'s catalog, without inventing models', async () => {
+    expect(await discoverPi(deps({ find: () => undefined }))).toEqual({ agent: 'pi', installed: false, models: [], note: 'pi not found on PATH' });
+    const path = orcaCatalogPath(deps({}).env);
+    expect(await discoverPi(deps({ readFile: fixtureFiles({ orcaCatalog }) }))).toEqual({
+      agent: 'pi', installed: true, models: [], note: `no Pi models in Orca's catalog (${path})`,
+    });
+    expect(await discoverPi(deps({ readFile: fixtureFiles({}) }))).toMatchObject({ installed: true, models: [] });
   });
 });
