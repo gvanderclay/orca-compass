@@ -1,6 +1,6 @@
 import { DEMAND_EFFORT, snapEffort } from './effort.js';
 import { poolState, projectPool, rankHeadroom } from './pace.js';
-import { launchGateReasonFor, PI_HELPER_WARNING, piHelperMode, piHelperSkip } from './pi-helper.js';
+import { launchGateReasonFor, piTerminalMode, piTerminalWarning } from './pi-terminal.js';
 import type { Rejection } from './rejection.js';
 import { FAMILY_TIERS, isLadderVendor, knownModelVersion, modelFamily } from '../placements/tiers.js';
 import {
@@ -94,7 +94,7 @@ const CONFIDENCE_ORDER: Confidence[] = ['high', 'medium', 'low'];
  */
 export function route(req: RouteRequest, env: Environment, config: Config): Decision {
   const decision = selectRoute(req, env, config);
-  if (decision.route && piHelperMode(decision.route.agent, env.orcaVersion, config)) decision.warnings.push(PI_HELPER_WARNING);
+  if (decision.route && piTerminalMode(decision.route.agent, env.orcaVersion, config)) decision.warnings.push(piTerminalWarning(decision.route));
   if (req.tierReason) {
     decision.tierReason = req.tierReason;
     decision.reasons.push(`task tier ${req.tier}: ${req.tierReason}`);
@@ -354,7 +354,7 @@ function collectCandidates(agents: PlacedAgent[], env: Environment, config: Conf
       // The table already holds the placement (built from every source); the route only reads it.
       const placed = model.placements;
       const rejected = rejectionOf(model, env.rejections);
-      const leftOut = banEntry(model, config.banModels) ? 'banned by you' : rejected ? rejectedText(rejected, env.now) : piHelperSkip(model, env.orcaVersion, config);
+      const leftOut = banEntry(model, config.banModels) ? 'banned by you' : rejected ? rejectedText(rejected, env.now) : undefined;
       if (leftOut) {
         const inTier = placed.some((c) => c.tier === tier);
         if (inTier && !skipped.some((s) => s.agent === model.agent && s.model === model.modelId)) {

@@ -83,14 +83,22 @@ cache; OrcaCompass writes it when it invokes that command during discovery.
 #### Fork-only: `piModelLaunch`
 
 This key exists only in the `gvanderclay/local-fixes` fork, not in upstream
-OrcaCompass. `"piModelLaunch": "helper"` routes Pi on an Orca whose version is
-known and below the Pi launch minimum (today: every Orca), for a coordinator
-that starts the chosen model through the local `orca-pi-chat` helper instead of
-`worker-start`. Every Pi route then carries the warning `pi: launch through
-orca-pi-chat (this Orca refuses --model for pi); launchArgs are not runnable`,
-and Pi models with no effort level are skipped, since the helper needs one.
-An unknown Orca version keeps Pi out. Pi stays a last-resort agent unless
-`--agent pi` or a preference for the tier names it.
+OrcaCompass. `"piModelLaunch": "terminal"` routes Pi on an Orca whose version is
+known and below the Pi launch minimum (today: every Orca). Such an Orca refuses
+`worker-start --agent pi --model`, so the coordinator starts Pi on the chosen
+model in an Orca terminal and attaches that terminal to the worker:
+
+```sh
+orca terminal create --worktree current --command "pi --model openai/gpt-6-luna --thinking low" --json
+orca orchestration worker-start --terminal <handle> --worktree current --spec "<task>"
+```
+
+Every Pi route then carries a warning that starts with `pi: this Orca refuses
+--model for pi, so launchArgs are not runnable;` and names the `pi` command for
+that route (without `--thinking` when the model offers no effort). The attached
+worker's launch metadata names no model, so `verify` reports only its
+lifecycle. An unknown Orca version keeps Pi out. Pi stays a last-resort agent
+unless `--agent pi` or a preference for the tier names it.
 
 ### Usage
 

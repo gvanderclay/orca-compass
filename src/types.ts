@@ -298,8 +298,8 @@ export interface Config {
   /** Route Cursor's `auto` in Light and Daily, ahead of named Cursor models. */
   cursorAuto: boolean;
   /**
-   * Fork-only: `helper` routes Pi on an Orca that refuses `--model` for Pi; the coordinator starts it through
-   * orca-pi-chat. Absent: Pi waits for an Orca release that starts it on a chosen model.
+   * Fork-only: `terminal` routes Pi on an Orca that refuses `--model` for Pi; the coordinator starts Pi on the
+   * chosen model in an Orca terminal and attaches it. Absent: Pi waits for an Orca release that starts it itself.
    */
-  piModelLaunch?: 'helper';
+  piModelLaunch?: 'terminal';
 }

@@ -4,7 +4,7 @@ import type { Readable, Writable } from 'node:stream';
 import {
   applyAgentChoice, DEFAULT_CONFIG, isChosen, parsePercent, setAgentChoice, setBans, setPin, setPreferRiskLimit, updateConfigFile, type AgentChoice,
 } from './config.js';
-import { launchGateReasonFor } from './routing/pi-helper.js';
+import { launchGateReasonFor } from './routing/pi-terminal.js';
 import { agentNotFamily, agentSkipReason, banMatches, enabledInOrca, launchIds, route } from './routing/router.js';
 import { TIERS, type AgentId, type Config, type Effort, type Environment, type Preference, type Risk, type Tier } from './types.js';
 import { configPath } from './paths.js';
