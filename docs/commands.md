@@ -126,7 +126,7 @@ field.
 orcacompass verify --dispatch <dispatchId> [--wait 60] [--json]
 ```
 
-Watches the worker Orca just started (`worker-show`, then `worker-read
+Watches the worker Orca just started (`worker-show --full`, then `worker-read
 --source terminal` with 1.5 s between polls). The total budget includes the
 initial lookup, reads, and polling delays. The default and maximum are 60 s.
 `--wait` accepts 0–60 seconds, with 0 returning `unknown` immediately. A verdict

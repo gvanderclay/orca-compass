@@ -46,20 +46,20 @@ interface Observation {
   tail: string[];
 }
 
-type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
+type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; code?: string };
 
 function orcaResult(stdout: string, code: number | null, error?: string): Parsed<any> {
   try {
     const data = JSON.parse(stdout);
     if (data?.ok === true) return { ok: true, value: data.result ?? {} };
     const e = data?.error;
-    return { ok: false, error: typeof e === 'string' ? e : e?.message ?? e?.code ?? 'orca reported an error' };
+    return { ok: false, error: typeof e === 'string' ? e : e?.message ?? e?.code ?? 'orca reported an error', ...(typeof e?.code === 'string' ? { code: e.code } : {}) };
   } catch {
     return { ok: false, error: error ?? (code === 0 ? 'orca printed no JSON' : `orca exited with code ${code}`) };
   }
 }
 
-/** `orca orchestration worker-show --json`: the effective launch (agent, model) and the Task. */
+/** `orca orchestration worker-show --full --json`: the effective launch (agent, model) and the Task. The concise output has no launch, so it yields no model. */
 export function parseWorkerShow(stdout: string, code: number | null = 0, error?: string): Parsed<{ agent?: string; model?: string; taskId?: string }> {
   const r = orcaResult(stdout, code, error);
   if (!r.ok) return r;
@@ -71,7 +71,7 @@ export function parseWorkerShow(stdout: string, code: number | null = 0, error?:
     value: {
       agent: str(effective.agent) ?? str(r.value.worker?.startOptions?.agent),
       model: str(effective.model),
-      taskId: str(r.value.dispatch?.taskId) ?? str(r.value.dispatch?.task_id),
+      taskId: str(r.value.dispatch?.taskId) ?? str(r.value.dispatch?.task_id) ?? str(r.value.taskId),
     },
   };
 }
@@ -98,12 +98,17 @@ export async function verifyWorker(dispatchId: string, deps: VerifyDeps, opts: V
   if (waitMs === 0) return { status: 'unknown', dispatchId, detail: timeoutDetail, cleanup: [] };
   const workingMs = opts.workingMs ?? 8_000;
   const pollMs = opts.pollMs ?? 1_500;
-  const orca = (args: string[]) => deps.run('orca', ['orchestration', ...args, '--dispatch', dispatchId, '--json'], { timeoutMs: Math.min(20_000, remaining()) });
+  const orca = (args: string[], extra: string[] = []) => deps.run('orca', ['orchestration', ...args, '--dispatch', dispatchId, ...extra, '--json'], { timeoutMs: Math.min(20_000, remaining()) });
   const stop = ['orca', 'orchestration', 'worker-stop', '--dispatch', dispatchId, '--json'];
   const release = ['orca', 'orchestration', 'worker-release', '--dispatch', dispatchId, '--json'];
 
-  const shown = await orca(['worker-show']);
-  const launch = parseWorkerShow(shown.stdout, shown.code, shown.error);
+  // Only --full carries the launch (agent, model). If this Orca rejects the flag, retry once without it in the time left.
+  const shown = await orca(['worker-show'], ['--full']);
+  let launch = parseWorkerShow(shown.stdout, shown.code, shown.error);
+  if (!launch.ok && launch.code === 'invalid_argument' && remaining() > 0) {
+    const legacy = await orca(['worker-show']);
+    launch = parseWorkerShow(legacy.stdout, legacy.code, legacy.error);
+  }
   if (!launch.ok) return { status: 'unknown', dispatchId, detail: `orca worker-show failed: ${launch.error}`, cleanup: [] };
   const { agent, model, taskId } = launch.value;
   const base = { dispatchId, ...(taskId ? { taskId } : {}), ...(agent ? { agent } : {}), ...(model ? { model } : {}) };

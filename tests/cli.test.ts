@@ -605,6 +605,27 @@ describe('verify and rejected', () => {
     expect(JSON.parse(out()).route.model).toBe('claude-sonnet-5-5');
   });
 
+  it('asks for --full, and a concise worker-show without a model neither rejects nor records a refusal', async () => {
+    const shows: string[][] = [];
+    const concise: Runner = async (cmd, args, opts) => {
+      if (args[0] === 'orchestration' && args[1] === 'worker-show') {
+        shows.push(args);
+        return { code: 0, stderr: '', stdout: JSON.stringify({ ok: true, result: { taskId: 'task_1', worker: {} } }) };
+      }
+      return orcaWorker(cmd, args, opts);
+    };
+    let elapsed = NOW;
+    const ticking = { ...verifyDeps, run: concise, clock: () => elapsed, sleep: async (ms: number) => { elapsed += ms; } };
+    expect(await main(['verify', '--dispatch', 'ctx_1', '--json'], io, ticking)).toBe(0);
+    expect(shows).toEqual([['orchestration', 'worker-show', '--dispatch', 'ctx_1', '--full', '--json']]);
+    const v = JSON.parse(out());
+    expect(v.status).not.toBe('rejected');
+    expect(v).not.toHaveProperty('skippedForHours');
+    stdout = [];
+    await main(['rejected'], io, deps);
+    expect(out()).not.toContain('claude-sonnet-5-5');
+  });
+
   it('prints the verdict and next steps as text, and needs --dispatch', async () => {
     await main(['verify', '--dispatch', 'ctx_1'], io, verifyDeps);
     expect(out()).toMatch(/^rejected: claude · claude-sonnet-5-5 — claude refused claude-sonnet-5-5\n  agent said: There's an issue/);

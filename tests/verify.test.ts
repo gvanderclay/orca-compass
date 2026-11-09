@@ -140,3 +140,80 @@ describe('verifyWorker', () => {
     expect(await verifyWorker('ctx_9', deps, opts)).toEqual({ status: 'unknown', dispatchId: 'ctx_9', detail: 'orca worker-show failed: no such dispatch', cleanup: [] });
   });
 });
+
+describe('verifyWorker worker-show metadata', () => {
+  const refusal = ["There's an issue with the selected model (gpt-6-luna). It may not exist or you may not have access to it."];
+  const bad = (code: string) => JSON.stringify({ ok: false, error: { code, message: `${code} message` } });
+  const concise = JSON.stringify({ ok: true, result: { taskId: 'task_9', worker: { handle: 'h' } } });
+
+  /** A fake Orca whose worker-show answers by argv; every call is recorded and costs `cost` ms. */
+  function scripted(showFor: (args: string[]) => string, cost = 0) {
+    let t = 0;
+    const calls: string[][] = [];
+    const deps: VerifyDeps = {
+      run: async (_cmd, args, options) => {
+        calls.push(args);
+        t += Math.min(cost, options?.timeoutMs ?? cost);
+        return { code: 0, stderr: '', stdout: args[1] === 'worker-show' ? showFor(args) : read({ outcome: 'succeeded', tail: refusal }) };
+      },
+      sleep: async (ms) => { t += ms; },
+      clock: () => t,
+    };
+    return { deps, calls };
+  }
+
+  it('requests the full worker-show output', async () => {
+    const { deps, calls } = scripted(() => show('codex', 'gpt-6-luna'));
+    await verifyWorker('ctx_1', deps, opts);
+    expect(calls[0]).toEqual(['orchestration', 'worker-show', '--dispatch', 'ctx_1', '--full', '--json']);
+    expect(calls.filter((a) => a[1] === 'worker-show')).toHaveLength(1);
+  });
+
+  it('retries once without --full when Orca rejects the flag, and still finds the model', async () => {
+    const { deps, calls } = scripted((args) => (args.includes('--full') ? bad('invalid_argument') : show('codex', 'gpt-6-luna')));
+    const v = await verifyWorker('ctx_1', deps, opts);
+    expect(calls.filter((a) => a[1] === 'worker-show')).toEqual([
+      ['orchestration', 'worker-show', '--dispatch', 'ctx_1', '--full', '--json'],
+      ['orchestration', 'worker-show', '--dispatch', 'ctx_1', '--json'],
+    ]);
+    expect(v).toMatchObject({ status: 'rejected', agent: 'codex', model: 'gpt-6-luna', taskId: 'task_1' });
+  });
+
+  it('does not retry on any other error', async () => {
+    for (const code of ['dispatch_not_found', 'runtime_unavailable', 'unknown_flag']) {
+      const { deps, calls } = scripted(() => bad(code));
+      expect(await verifyWorker('ctx_1', deps, opts)).toMatchObject({ status: 'unknown', detail: `orca worker-show failed: ${code} message` });
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  it('reports the retry failure as unknown, with no second retry', async () => {
+    const { deps, calls } = scripted((args) => (args.includes('--full') ? bad('invalid_argument') : bad('dispatch_not_found')));
+    expect(await verifyWorker('ctx_1', deps, opts)).toMatchObject({ status: 'unknown', detail: 'orca worker-show failed: dispatch_not_found message' });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('keeps one budget across both worker-show calls and makes no retry once it is spent', async () => {
+    const spent = scripted((args) => (args.includes('--full') ? bad('invalid_argument') : show('codex', 'gpt-6-luna')), 20_000);
+    expect(await verifyWorker('ctx_1', spent.deps, { waitMs: 20_000 })).toMatchObject({ status: 'unknown', detail: 'orca worker-show failed: invalid_argument message' });
+    expect(spent.calls).toHaveLength(1);
+
+    const shared = scripted((args) => (args.includes('--full') ? bad('invalid_argument') : show('codex', 'gpt-6-luna')), 12_000);
+    await verifyWorker('ctx_1', shared.deps, { waitMs: 20_000 });
+    expect(shared.calls.filter((a) => a[1] === 'worker-show')).toHaveLength(2);
+    expect(shared.deps.clock()).toBeLessThanOrEqual(20_000);
+  });
+
+  it('takes the Task id from the concise top level, and never invents a model from it', async () => {
+    const { deps } = scripted(() => concise);
+    const v = await verifyWorker('ctx_1', deps, opts);
+    expect(v).toMatchObject({ status: 'reported', taskId: 'task_9' });
+    expect(v).not.toHaveProperty('model');
+    expect(v).not.toHaveProperty('agent');
+  });
+
+  it('never reports a refusal without a model', async () => {
+    const { deps } = scripted(() => concise);
+    expect((await verifyWorker('ctx_1', deps, opts)).status).not.toBe('rejected');
+  });
+});

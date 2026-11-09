@@ -26,8 +26,11 @@ closes that gap. Code: `src/verify.ts`, `src/routing/rejection.ts`,
 orcacompass verify --dispatch <dispatchId> [--wait 60] --json
 ```
 
-1. `orca orchestration worker-show --dispatch <id> --json`: the effective
-   agent and model, and the Task id.
+1. `orca orchestration worker-show --dispatch <id> --full --json`: the
+   effective agent and model, and the Task id. The concise output has no
+   model, so without `--full` a refusal cannot be matched. If Orca rejects
+   `--full` with `invalid_argument`, `verify` retries once without it inside
+   the same time budget; other errors are not retried.
 2. With 1.5 s between polls, `orca orchestration worker-read --dispatch <id> --source
    terminal --limit 80 --json`: Orca's fleet projection (activity, outcome,
    liveness) and the terminal tail.
